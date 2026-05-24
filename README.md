@@ -1,17 +1,90 @@
-# AI Dev Governance
+<h1 align="center">AI Dev Governance</h1>
 
-*Field-tested patterns for running AI coding agents across many repos — a planner that can't commit, an executor that can, and the file discipline that keeps them honest.*
+<p align="center">
+  <strong>A field-tested model for running AI coding agents across many repos — a planner that can't commit, an executor that can, and the file discipline that keeps them honest.</strong>
+</p>
 
-This is a reference distilled from a production setup that coordinates two AI actors across roughly twenty repositories. It is not a framework to install; it's a set of patterns plus the mistakes that produced them. Nothing here is tied to a particular stack or a particular pair of AI tools — map the roles and conventions onto whatever you use.
+<p align="center">
+  <em>Actor-agnostic. Pair any strategist-style AI with any executor-style agent.</em>
+</p>
 
-**Who this is for:** solo developers and small teams using AI coding agents — typically a chat assistant *plus* a terminal agent — across more than one repository. Anyone who's hit the wall where the AI forgets, overwrites a live file, or quietly drifts out of sync with production will recognize the failure modes below.
+<p align="center">
+  <img src="https://img.shields.io/badge/status-living%20document-brightgreen" alt="Status: living document">
+  <img src="https://img.shields.io/badge/works%20with-any%20strategist%20%2B%20executor-blue" alt="Works with any strategist + executor">
+  <img src="https://img.shields.io/badge/read-~15%20min-orange" alt="Read time ~15 min">
+  <img src="https://img.shields.io/badge/license-CC%20BY%204.0-lightgrey" alt="License CC BY 4.0">
+</p>
 
-> **Two roles, defined once.**
-> **Strategist** — a chat- or project-based AI that designs from *outside* the codebase. It has no filesystem access, no persistent memory across sessions, and can't run your build. It is strong at research, architecture, and writing detailed specs.
-> **Executor** — a terminal/CLI coding agent that runs *inside* the repo. It reads your context files at startup, runs the build, tests, and database queries, and is the **only** role allowed to commit and push.
-> **Operator** — the human in the loop, who approves risky steps and runs anything the agents are not permitted to (secrets, migrations).
+<!-- Add your Runway hero banner at assets/hero.png, then this renders. Delete these two lines if you don't want a banner. -->
+<p align="center">
+  <img src="assets/hero.png" alt="AI Dev Governance — a Strategist plans, an Executor ships, files keep them in sync" width="820">
+</p>
 
-### The six lessons at a glance
+---
+
+**Your AI agent forgot everything from yesterday. It just overwrote a file that was working. And the "plan" it confidently executed was based on a database that hasn't looked like that in weeks.**
+
+If you've felt any of that, you've hit the wall this repo is about. It's not a tool to install — it's the governance model a small shop evolved while running two AI actors across ~20 repositories, written down so you can skip the painful parts. Every pattern here is the scar tissue of a specific mistake.
+
+> **The goal isn't to make AI write more code faster — it's to make sure the code it writes is the code you actually wanted, every time, without you watching it type.**
+
+**Who this is for:** solo developers and small teams using AI coding agents — usually a chat assistant *plus* a terminal agent — across more than one repo. New devs get a structure to model from before the walls show up; experienced devs hitting those walls get a map out.
+
+---
+
+## 🚀 How to use this repo
+
+You don't read this like a tutorial. You hand it to your AI and let it adapt the model to *your* setup.
+
+**1. Point your Strategist at this page.** Paste the prompt below into whatever chat-based AI you use, with this README in context (paste the raw file, or give it the repo URL).
+
+```text
+You are acting as my Strategist. Read this entire page top to bottom.
+
+Then, given my setup:
+- Repos / projects: <e.g. 3 Next.js apps + a shared package>
+- My Strategist tool: <e.g. Claude in the web app>
+- My Executor tool: <e.g. Claude Code in my terminal>
+- Where my files live: <e.g. ~/dev, GitHub org "acme">
+
+Assess how to adapt this governance model to MY environment. Tell me:
+1. Which of my tools should play Strategist vs Executor, and why.
+2. What my AGENT.md cascade should look like (global → family → project).
+3. The single smallest first step I can take this week.
+Flag anything in this model that doesn't fit my situation — don't force it.
+```
+
+**2. Map the two roles to your tools** (see below — the roles matter more than the brands).
+
+**3. Adopt the minimum core first:** the two-role split and checkpoints. That alone kills most of the pain.
+
+**4. Grow into the rest** — the cascade, the Sanity Check, the roadmap index — as your repo count climbs. The [deep dives](#-deep-dives) cover each facet in isolation.
+
+---
+
+## 🧩 Works with any Strategist + Executor
+
+This model is **actor-agnostic.** It describes two *roles*, not two products. Slot in whatever you already use.
+
+| Role | What it needs to be good at | Example tools |
+| :---- | :---- | :---- |
+| **Strategist** | Research, architecture, writing specs. Works *outside* the repo. Needs no commit access — and shouldn't have it. | Claude (web/app), ChatGPT, Perplexity, Gemini |
+| **Executor** | Lives *inside* the repo. Runs the build, tests, and DB queries. Commits and pushes. | Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, Aider |
+
+**Example pairings** — all equally valid:
+
+| Strategist | Executor |
+| :---- | :---- |
+| Claude (app) | Claude Code |
+| Perplexity | Codex |
+| ChatGPT | Cursor |
+| Gemini (web) | Gemini CLI |
+
+…or any combination. Pick whatever you already pay for; the discipline is in the *handoff between the roles*, not the logos.
+
+---
+
+## The six lessons at a glance
 
 1. The planning AI is blind and amnesiac — so don't let it touch code.
 2. Sessions die mid-task — so write to disk constantly and verify.
@@ -42,7 +115,7 @@ AI sessions time out, and a cloud agent's working filesystem is ephemeral — it
 
 The Strategist designs without seeing live data. Treat **every handoff as a design, not a law.** Before implementing one, the Executor runs a quick reality check against production: existing records, naming collisions, foreign-key relationships, and anything already sent, paid, or deployed.
 
-This rule was bought the hard way. Early on, a spec renamed a billing record that had *already issued invoices* — and those invoices then displayed under the wrong name. A reality check that queried the live billing records first would have caught it. That's why specs are now validated against production before a single line lands.
+This rule was bought the hard way. Early on, a spec renamed a billing record that had *already issued invoices* — and those invoices then displayed under the wrong name. A reality check that queried the live billing records first would have caught it. That's why specs are now validated against production before a single line lands. → [Full walkthrough](docs/sanity-check.md)
 
 ### 4. Rules conflict across scopes — so define a precedence order up front
 
@@ -133,6 +206,19 @@ Each project's `AGENT.md` carries its own **changelog** at the top — a narrati
 | **Strategist** | *Outside* the codebase | No | Research, architecture, spec authoring |
 | **Executor** | *Inside* the repo | Yes (only role that can) | Planning, code, tests, deploy, git |
 
+The handoff between them is the whole game:
+
+```mermaid
+flowchart LR
+    S["Strategist<br/>(designs from outside)"] -->|writes handoff spec| H[("Handoff spec<br/>in governance repo")]
+    H --> E["Executor<br/>(runs inside the repo)"]
+    E -->|reality-check vs production| C{Conflict?}
+    C -->|yes| D["Emit delta →<br/>operator approves"]
+    C -->|no| X["Execute → QA → push"]
+    D --> X
+    X -->|logs to changelog| H
+```
+
 #### Tier routing
 
 Every task gets a **tier** that decides who handles it and how much protocol applies:
@@ -212,6 +298,8 @@ If it finds a conflict, the Executor emits a **delta** — what the spec says vs
 
 **Bounded deviation:** the Executor may deviate only when *all three* hold — the evidence is file-anchored and reproducible, the deviation is minimal and risk-reducing, and scope doesn't expand materially. Every deviation is logged in the completion summary and accumulates in the project's changelog; recurring ones get promoted to family standards.
 
+→ Deep dives: [the Sanity Check, in isolation](docs/sanity-check.md) · [how Bounded Deviation works](docs/bounded-deviation.md)
+
 ---
 
 ### Layered protocol — Post-execution QA (Tier 2+)
@@ -273,6 +361,24 @@ The **next session** picks up from the checkpoint and the changelog entry. Nothi
 
 ---
 
+## 📚 Deep dives
+
+Each facet of the model, presented in isolation with worked examples. Start with whichever wall you're hitting.
+
+| Deep dive | What it covers | Status |
+| :---- | :---- | :---- |
+| [The Sanity Check](docs/sanity-check.md) | Validating a blind spec against live production before it runs | ✅ |
+| Bounded Deviation | The exact rule for when an Executor may stray from the spec | 🚧 Planned |
+| The Two Roles | Choosing your Strategist and Executor; drawing the line between them | 🚧 Planned |
+| The Context Cascade | Building an `AGENT.md` hierarchy that resolves conflicts cleanly | 🚧 Planned |
+| Checkpoints & Handoffs | Templates and the session-resume protocol | 🚧 Planned |
+| The Roadmap System | Two genres, the index, and why surfaces are allowed to drift | 🚧 Planned |
+| The QA Gate | The fixed checklist that defines "done" | 🚧 Planned |
+
+> Adding a deep dive? Copy [`docs/_deep-dive-template.md`](docs/_deep-dive-template.md) so every facet reads the same way.
+
+---
+
 ## Adapting this to your setup
 
 You don't need three families, a dashboard, or an orchestrator to use most of this. The transferable core is small:
@@ -285,4 +391,16 @@ You don't need three families, a dashboard, or an orchestrator to use most of th
 
 Start with the two-role split and checkpoints. Add the cascade, the Sanity Check, and the roadmap index as your repo count grows and the failure modes above start to bite.
 
-Found this useful? Borrow it, adapt it, and make it yours.
+---
+
+## 🤝 Contributing
+
+Found a wall we didn't cover, or a cleaner way to handle one we did? Open an issue describing the failure mode and how your approach prevents it. New facet docs should follow the [deep-dive template](docs/_deep-dive-template.md). See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Using these patterns
+
+Borrow it, adapt it, make it yours. *(Add a `LICENSE` file — CC BY 4.0 for the prose, or MIT if you include code samples — so reuse is unambiguous.)*
+
+---
+
+<p align="center"><strong>Stop babysitting your agents. Start governing them.</strong></p>
