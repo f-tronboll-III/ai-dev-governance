@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/status-living%20document-brightgreen" alt="Status: living document">
   <img src="https://img.shields.io/badge/works%20with-any%20strategist%20%2B%20executor-blue" alt="Works with any strategist + executor">
   <img src="https://img.shields.io/badge/read-~15%20min-orange" alt="Read time ~15 min">
-  <img src="https://img.shields.io/badge/license-CC%20BY%204.0-lightgrey" alt="License CC BY 4.0">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-CC%20BY%204.0-lightgrey" alt="License CC BY 4.0"></a>
 </p>
 
 <!-- Add your Runway hero banner at assets/hero.png, then this renders. Delete these two lines if you don't want a banner. -->
@@ -369,11 +369,11 @@ Each facet of the model, presented in isolation with worked examples. Start with
 | :---- | :---- | :---- |
 | [The Sanity Check](docs/sanity-check.md) | Validating a blind spec against live production before it runs | ✅ |
 | [Bounded Deviation](docs/bounded-deviation.md) | The exact rule for when an Executor may stray from the spec | ✅ |
-| The Two Roles | Choosing your Strategist and Executor; drawing the line between them | 🚧 Planned |
-| The Context Cascade | Building an `AGENT.md` hierarchy that resolves conflicts cleanly | 🚧 Planned |
-| Checkpoints & Handoffs | Templates and the session-resume protocol | 🚧 Planned |
-| The Roadmap System | Two genres, the index, and why surfaces are allowed to drift | 🚧 Planned |
-| The QA Gate | The fixed checklist that defines "done" | 🚧 Planned |
+| [The Two Roles](docs/two-roles.md) | Choosing your Strategist and Executor; drawing the line between them | ✅ |
+| [The Context Cascade](docs/context-cascade.md) | Building an `AGENT.md` hierarchy that resolves conflicts cleanly | ✅ |
+| [Checkpoints & Handoffs](docs/checkpoints-handoffs.md) | Templates and the session-resume protocol | ✅ |
+| [The Roadmap System](docs/roadmap-system.md) | Two genres, the index, and why surfaces are allowed to drift | ✅ |
+| [The QA Gate](docs/qa-gate.md) | The fixed checklist that defines "done" | ✅ |
 
 > Adding a deep dive? Copy [`docs/_deep-dive-template.md`](docs/_deep-dive-template.md) so every facet reads the same way.
 
