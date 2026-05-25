@@ -2,7 +2,7 @@
 
 > A blind spec meets live production *before* it runs. The Executor verifies every assumption the Strategist made against the real database and filesystem, and stops if reality disagrees.
 
-**Part of:** [AI Dev Governance](../README.md) · **Prerequisite reading:** [The Two Roles](../README.md#foundation-3--the-two-role-framework)
+**Part of:** [AI Dev Governance](../README.md) · **Prerequisite reading:** [The Two Roles](two-roles.md)
 
 ---
 
@@ -44,7 +44,7 @@ NEW CRITERIA:  New invoices use "Acme Holdings LLC"; the 6 issued
 → Awaiting operator approval before proceeding.
 ```
 
-The **operator** approves, adjusts, or rejects. Only then does the work run. The delta — and the decision — gets logged in the repo's `AGENT.md` changelog, so the reasoning survives the session.
+The **Operator** approves, adjusts, or rejects. Only then does the work run. The delta — and the decision — gets logged in the repo's `AGENT.md` changelog *and* as a one-liner in the cross-family [Delta Log](delta-log.md), so the reasoning survives the session and the pattern becomes visible across repos.
 
 ## Worked example
 
@@ -73,5 +73,6 @@ The Strategist's goal was met. The Strategist's *method* was corrected by the on
 ## Related
 
 - [Bounded Deviation](bounded-deviation.md) — the exact limits on when the Executor may deviate without asking
-- [The Two Roles](../README.md#foundation-3--the-two-role-framework) — why the check belongs to the Executor, not the Strategist
+- [The Delta Log](delta-log.md) — where deltas are tallied so recurring ones become standards
+- [The Two Roles](two-roles.md) — why the check belongs to the Executor, not the Strategist
 - Back to the [main playbook](../README.md)

@@ -29,9 +29,20 @@ When a handoff bundles product-shape items (decisions, renames) with execution-s
 
 **One index, one entry point.** A single hand-maintained index catalogs every product and execution roadmap (with links) plus a staleness table. It's the first thing to read before sprint planning or cross-repo moves, and the place drift gets caught.
 
-**Dialects by work-shape.** Different groups of repos evolve different execution-tracking conventions because their work is shaped differently — centralized rollup, per-project, umbrella constellation. These are deliberately *not* normalized; forcing one convention across differently-shaped work is its own anti-pattern. (Full treatment in the [main playbook](../README.md#layered-protocol--the-roadmap-system).)
+**Dialects by work-shape.** Different groups of repos evolve different execution-tracking conventions because their work is shaped differently — centralized rollup, per-project, umbrella constellation. These are deliberately *not* normalized; forcing one convention across differently-shaped work is its own anti-pattern. (Full treatment in the [architecture reference](architecture.md#layered-protocol--the-roadmap-system).)
 
-**A third surface.** A dashboard with a database-backed roadmap table is a *third* surface that does **not** auto-sync with the markdown roadmaps. If an item belongs there, it's added explicitly.
+### A third surface: the dashboard
+
+Many teams eventually grow a *rendered* roadmap surface — a database-backed table shown as a dashboard widget, often for an audience that won't read markdown (a stakeholder, a client view, an executive at-a-glance page, an in-product roadmap). This is fine. It's also the place the model most commonly breaks if you're not deliberate about it.
+
+The rule: **the dashboard is a curated, opinionated projection — not the source of truth, and not auto-synced from the markdown roadmaps.**
+
+- **Opinionated.** The dashboard doesn't show everything in the roadmaps — it shows the subset its audience needs. "Refactor the date helper" doesn't belong on a customer-facing roadmap; "shipping multi-tenant in Q3" might.
+- **Manually curated.** Items land on the dashboard by an explicit decision, not by a sync script trying to map every markdown bullet onto a row. The mapping is lossy by design.
+- **Not the source of truth.** When the dashboard and the markdown disagree, the markdown wins for *what's actually shipping*; the dashboard wins for *what the audience was told.* Closing that gap is a curation task, not a sync task.
+- **Audit, don't reconcile.** The roadmap index includes the dashboard in its staleness table. "Dashboard hasn't been touched in three weeks" is a curation backlog, not a sync bug.
+
+The failure mode this prevents: every team that has tried to auto-sync a markdown roadmap into a database-backed view has ended up with a script that quietly lies — it gets the easy cases right and silently miscategorizes the rest, and the audience the dashboard exists *for* ends up trusting wrong information. Curated drift, surfaced on audit, is the lesser evil.
 
 ## Worked example
 
@@ -56,6 +67,6 @@ Under a sync-everything regime, you'd have a script fighting to reconcile three 
 
 ## Related
 
-- [Roadmap system — full overview](../README.md#layered-protocol--the-roadmap-system)
+- [Roadmap system — full overview](architecture.md#layered-protocol--the-roadmap-system)
 - [Checkpoints & Handoffs](checkpoints-handoffs.md) — execution items originate in handoffs
 - Back to the [main playbook](../README.md)

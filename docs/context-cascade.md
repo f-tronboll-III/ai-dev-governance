@@ -23,6 +23,31 @@ Declare a precedence order, and write it into the files themselves. Top to botto
 
 **More specific wins** for project detail; **more general wins** for routing and cross-cutting policy. Decide this once, up front — not in the middle of a conflict.
 
+```mermaid
+flowchart TB
+    subgraph CASCADE["Context-file cascade"]
+        direction TB
+        G["<b>Global</b> AGENT.md<br/>routing · repo schema · universal policy"]
+        S["<b>Shared-resource</b> AGENT.md<br/>orchestrator · registry · shared infra"]
+        F["<b>Family</b> AGENT.md<br/>stack · conventions · integration patterns"]
+        P["<b>Project</b> AGENT.md<br/>repo-specific overrides + changelog"]
+        G --> S --> F --> P
+    end
+    A["Routing &<br/>cross-cutting policy<br/>(general wins)"] -.->|wins downward| G
+    B["Project-specific<br/>build & convention detail<br/>(specific wins)"] -.->|wins upward| P
+```
+
+**Which way "wins" runs depends on the question:**
+
+| The question is about… | Who wins | Why |
+| :---- | :---- | :---- |
+| Build/test/format/style detail for *this* repo | **Project** (most specific) | Only the project knows its quirks |
+| Stack choice, integration pattern across the family | **Family** | The whole family shares it |
+| Touching shared infrastructure (orchestrator, registry) | **Shared resource** | Cross-cutting governance must hold |
+| Routing, security, commit discipline, universal policy | **Global** | These exist *to* override local convenience |
+
+The two arrows in the diagram are the whole rule: **project-shaped questions resolve upward into specificity; policy-shaped questions resolve downward into generality.**
+
 ## How it works
 
 Each level holds only what belongs at its scope. A rule that's true everywhere lives at Global; a rule true for one repo lives in that repo's `AGENT.md`. Conflicts resolve by the rule above: the project file wins on how *that* project is built; the global file still wins on policies that protect every project.
@@ -57,5 +82,5 @@ Resolution: Project beats Family on indentation — specificity wins on project 
 ## Related
 
 - [The Two Roles](two-roles.md) — the Executor reads this cascade at startup
-- Governance Sync — keeping shared cascade files aligned across roles ([overview](../README.md#layered-protocol--governance-sync))
+- [Governance Sync](governance-sync.md) — keeping shared cascade files aligned across roles
 - Back to the [main playbook](../README.md)

@@ -20,7 +20,7 @@ The Executor may deviate from a handoff **without pausing for approval** only wh
 2. **Minimal & risk-reducing** — the deviation is the *smallest* change that removes a *concrete* risk. It is not an enhancement.
 3. **Scope-stable** — it doesn't materially expand which files or systems the task touches.
 
-If **any** gate fails, the Executor emits a [delta](sanity-check.md) and waits. And **every** deviation — even a fully-authorized one — is logged in the project's `AGENT.md` changelog. The license to deviate is never a license to deviate *silently*.
+If **any** gate fails, the Executor emits a [delta](sanity-check.md) and waits. And **every** deviation — even a fully-authorized one — is logged in the project's `AGENT.md` changelog *and* in the cross-family [Delta Log](delta-log.md). The license to deviate is never a license to deviate *silently*, and the count across repos is what tells the Strategist when a recurring deviation should become a family-wide rule.
 
 ## How it works
 
@@ -68,5 +68,6 @@ Gate 2 fails, so the Executor does **not** touch it. Instead it notes "invoice c
 ## Related
 
 - [The Sanity Check](sanity-check.md) — where deviations originate and how a delta is written
-- [The Two Roles](../README.md#foundation-3--the-two-role-framework) — why this freedom belongs to the Executor
+- [The Delta Log](delta-log.md) — where deviations accumulate until they become standards
+- [The Two Roles](two-roles.md) — why this freedom belongs to the Executor
 - Back to the [main playbook](../README.md)

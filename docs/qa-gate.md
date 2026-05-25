@@ -54,5 +54,5 @@ Without step 2, that change ships silently, and someone spends next Tuesday debu
 
 - [The Two Roles](two-roles.md) — the Executor owns the gate
 - [The Sanity Check](sanity-check.md) — the pre-edit bookend to this post-execution gate
-- [Post-execution QA — full overview](../README.md#layered-protocol--post-execution-qa-tier-2)
+- [Post-execution QA — full overview](architecture.md#layered-protocol--post-execution-qa-tier-2)
 - Back to the [main playbook](../README.md)

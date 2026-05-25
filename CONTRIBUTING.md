@@ -21,7 +21,7 @@ Copy [`docs/_deep-dive-template.md`](docs/_deep-dive-template.md) and keep the s
 
 ## Style
 
-- **Stay actor-agnostic.** Write in terms of the *Strategist* and *Executor* roles. Real tools (Claude Code, Codex, Cursor, …) appear only as examples, never as requirements.
+- **Stay actor-agnostic.** Write in terms of the *Strategist* and *Executor* roles. Real tools (Perplexity, ChatGPT, Claude, Codex, Cursor, Claude Code, Gemini CLI, …) appear only as examples, never as requirements. Don't favor any single vendor — the model works because it doesn't care.
 - **De-identify examples.** No real company names, repo names, client data, or internal jargon. A generalized story teaches just as well.
 - **Lessons first.** Lead with the mistake and the cost, then the fix.
 - **Keep it tight.** If a paragraph doesn't change what someone *does*, cut it.
