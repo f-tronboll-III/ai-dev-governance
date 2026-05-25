@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / help adapting this to my setup
+    url: https://github.com/steampunkfarms/ai-dev-governance/discussions
+    about: For general questions, "how do I adapt this," or sharing how you're using the playbook — use Discussions, not Issues.

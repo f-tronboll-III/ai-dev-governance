@@ -1,0 +1,35 @@
+name: "Gap, contradiction, or correction"
+description: "Something in the playbook is wrong, missing, or self-contradictory."
+title: "[gap] "
+labels: ["gap/correction"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for flagging. A short, specific report is more useful than a
+        long one — fill the fields below and skip what doesn't apply.
+  - type: textarea
+    id: where
+    attributes:
+      label: Where in the playbook
+      description: "File + section, or a direct link."
+      placeholder: "e.g. docs/sanity-check.md, section 'Bounded deviation'"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong, missing, or contradictory
+      description: "Be concrete. 'This rule misses case X' is good. 'This is bad' is not."
+    validations:
+      required: true
+  - type: textarea
+    id: incident
+    attributes:
+      label: Did this come from a real incident? (optional but useful)
+      description: "Most of the playbook is scar tissue from specific mistakes. If this came from one, the story helps."
+  - type: textarea
+    id: alternative
+    attributes:
+      label: What you'd put instead (optional)
+      description: "Not required, but speeds things up if you have one."

@@ -1,0 +1,40 @@
+name: "Propose a new deep-dive / facet"
+description: "A wall the playbook doesn't cover, with a sketch of how to handle it."
+title: "[facet] "
+labels: ["proposal/new-facet"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New deep-dives follow [`docs/_deep-dive-template.md`](https://github.com/steampunkfarms/ai-dev-governance/blob/main/docs/_deep-dive-template.md).
+        This template helps you sketch the proposal before you write the full doc.
+  - type: textarea
+    id: wall
+    attributes:
+      label: What wall does this facet describe?
+      description: "The specific failure mode this protects against. The README's six lessons are the model — each one started as a wall."
+    validations:
+      required: true
+  - type: textarea
+    id: incident
+    attributes:
+      label: A real incident this came from
+      description: "What broke, in actual production. Specific is good; brand names don't matter."
+    validations:
+      required: true
+  - type: textarea
+    id: protocol
+    attributes:
+      label: The rule / protocol you'd ship
+      description: "One sentence is fine. Implementation can come later."
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: "This isn't already covered by an existing deep-dive."
+          required: true
+        - label: "I'm willing to draft the doc (or pair with the maintainer on it)."
+          required: false
