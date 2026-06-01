@@ -100,7 +100,7 @@ The principle: **the cost of an unnecessary rotation is small; the cost of a del
 
 ## When the Strategist needs to "test" something
 
-This is the equivalent of the [Strategist's "just fix it quick" temptation in file handling](file-handling.md#when-the-strategist-is-tempted-to-just-fix-it-quick). The Strategist is debugging a webhook signature mismatch and asks the operator for the signing secret so it can compute a hash by hand. Don't.
+This is the equivalent of the [Strategist's "just fix it quick" temptation in file handling](file-handling.md#when-the-strategist-is-tempted-to-just-fix-it-quick), and the same shape as [the Operator's hard line in two-roles](two-roles.md#the-operators-hard-line-what-even-the-executor-doesnt-do) — the Executor can ship; the Operator owns the irreversible step. The Strategist is debugging a webhook signature mismatch and asks the operator for the signing secret so it can compute a hash by hand. Don't.
 
 The pattern instead:
 

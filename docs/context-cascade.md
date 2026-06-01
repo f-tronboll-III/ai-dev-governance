@@ -83,4 +83,5 @@ Resolution: Project beats Family on indentation — specificity wins on project 
 
 - [The Two Roles](two-roles.md) — the Executor reads this cascade at startup
 - [Governance Sync](governance-sync.md) — keeping shared cascade files aligned across roles
+- [Durable Memory](durable-memory.md) — the cross-session knowledge store loads through the same indexed-cascade shape
 - Back to the [main playbook](../README.md)

@@ -142,6 +142,7 @@ The next session reads it, skips to step 4, and finishes cleanly. Nothing is los
 
 - [File Handling](file-handling.md) — the mechanics that make incremental checkpointing actually work
 - [The Two Roles](two-roles.md) — what the handoff connects
+- [Durable Memory](durable-memory.md) — sibling discipline: checkpoints bridge time within a task, memory bridges time across tasks
 - [The Sanity Check](sanity-check.md) — the Executor's first move on receiving a handoff
 - [Governance Sync](governance-sync.md) — how the handoff file gets safely shared between roles
 - [The file-handling protocol — in context](architecture.md#foundation-4--the-file-handling-protocol)

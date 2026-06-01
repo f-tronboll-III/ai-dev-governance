@@ -90,6 +90,46 @@ Contrast the anti-pattern: mid-chat, the Strategist says *"this is easy, I'll ju
 - **Multiple Strategists.** Nothing in the model says you can only have one. The shop this playbook came from runs Perplexity and Claude side by side as paired strategists — different long-context strengths, different blind spots. The handoff to the single Executor is the convergence point.
 - **Choosing tools:** Strategist = strong research / long-context / architecture, no repo access needed. Executor = repo-native, runs your build, commits. See the [actor table](../README.md#-works-with-any-strategist--executor).
 
+## The Operator's hard line: what even the Executor doesn't do
+
+The Executor is the role with commit access. That is not the same as authorization for *every* mutation. There is a narrower band of actions — irreversible, outward-facing, or destructive of something the agent didn't create — that the Executor stops at and hands to the human, even though it has the technical ability to proceed.
+
+This is the counterpart to the role split itself. The Strategist's boundary is *no writes at all.* The Executor's boundary is *no writes that the Operator alone can undo, audit, or be held accountable for.* Naming the line explicitly is what stops the Executor from quietly inheriting human accountability the same way an unsplit agent inherits reviewer accountability.
+
+The scar tissue is concrete. A CLI command to set environment variables on a hosting platform looks identical to a dashboard click — except the CLI silently creates separate per-environment entries while the dashboard offers an "All Environments" option that the CLI doesn't expose. A year of config drift starts there. A handoff that renamed a billing record looked safe — except the record had already-sent invoices attached, and the rename landed under the wrong customer name on already-paid receipts. Both were within the Executor's technical authorization. Both should have stopped at the line.
+
+### The four categories
+
+1. **Irreversible infrastructure mutations.** Environment-variable writes, DNS changes, production database migrations, destructive schema operations. The cost of getting these wrong is hours of recovery or a security incident, and the agent can't see the second-order effects (which environments, which downstream consumers, which sessions). Hand the Operator a copy-paste block — exact commands or values, with the scope explicit (production / preview / development; which database; which table). The Operator pastes into the platform's own UI, where the platform's full set of options is visible.
+
+2. **Outward-facing sends.** Email blasts, social posts, transactional notifications to real recipients, anything that goes to an inbox or a public feed and can't be unsent. The Executor may *prepare* the send — render the template, queue the payload, dry-run against a sample list — and stop. The Operator approves the actual dispatch. The unit of approval is *the send,* not the code that performs it.
+
+3. **Overwrites of data the agent didn't create.** Renaming a record that already has dependents. Replacing a file whose history you can't reconstruct. Modifying rows that were entered by a human or a different system. The shape of the rule: *if you didn't write it, you don't overwrite it without an explicit hand-off.* The [Sanity Check](sanity-check.md) is what surfaces these collisions; this rule is what the Sanity Check escalates to.
+
+4. **Actions against external services where you're a guest.** Vendor APIs that bill per call, deletion endpoints on third-party stores, anything that touches a system you don't own and can't roll back. Even when authenticated and authorized, the Executor stops and hands the call to the Operator for explicit go-ahead. The vendor's view of intent is binary; the Operator is the disambiguator.
+
+### How the Executor signals it
+
+The handoff format already has the slot: an **Operator Action Block** at the end of every handoff, listing the steps the human will execute. When an Executor running a handoff encounters one of these categories *mid-execution* (not anticipated in the handoff's Action Block), it does the same thing the Sanity Check does for design conflicts — stops, writes a delta, and waits. The delta names the action, the category, and the specific risk; the Operator approves or rewrites.
+
+The five-second test: *if this action goes wrong, who's the one undoing it?* If the answer is *the Operator, not the agent,* hand it off before you take it.
+
+### Anti-patterns
+
+| Anti-pattern | Why it bites | Do instead |
+| :---- | :---- | :---- |
+| "It's just a quick env var, I'll script it" | Platform CLIs and dashboards expose different option sets; the agent's path silently diverges from the human's | Copy-paste block, Operator pastes into the dashboard |
+| Running a prod migration in-session because dev-environment migrations worked | Production has data; failure mode is data loss, not a retry | SQL goes into a separate block; Operator runs against prod, then confirms |
+| Sending an email blast on the Operator's behalf because the template is ready | The render is the easy part; the *unsend* doesn't exist | Render and stage; Operator hits send |
+| Renaming a record because the schema makes it look orphaned | "Looks orphaned" and *is* orphaned are different; the dependent rows may be in a table the agent didn't query | Sanity Check first; if dependents exist, hand to Operator |
+| Treating Executor authorization as universal because no individual mutation looks dangerous | The aggregate is the danger; one CLI call doesn't fragment config, but the *pattern* does over a year | Categorical rule, not per-call judgement |
+
+### Why this isn't "just trust"
+
+It would be cleaner if the four categories were enforced mechanically — CI rules, platform IAM, a tool blocklist. Where you can do that, do. The reality is that most setups can't enforce all four at the platform layer; the discipline is what fills the gap. And once the categories are named, mechanical enforcement gets easier to add incrementally: a pre-commit hook that blocks `env add`, a CI step that requires a manual approval for migrations, a Resend integration scoped to drafts-only. Each one is a hardening of a line that already existed.
+
+The role split establishes *the Strategist doesn't write.* This section establishes *the Executor doesn't write past the Operator's accountability.* Together they're the same shape at two scales — the agent's authority is always bounded by who undoes the damage.
+
 ## Related
 
 - [Checkpoints & Handoffs](checkpoints-handoffs.md) — the artifact that crosses the line

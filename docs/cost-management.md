@@ -165,7 +165,7 @@ The discipline traded a $300/month surprise for a 30-minute exercise that, repea
 
 ## Related
 
-- [Infrastructure Limits](infrastructure-limits.md) — the dated, operator-verified file that records every vendor's plan, limits, and scar-tissue gotchas; the metered-service trap above lives in its gotchas section
+- [Infrastructure Limits](infrastructure-limits.md) — the dated, operator-verified file that records every vendor's plan, limits, and scar-tissue gotchas; the metered-service trap above lives in its gotchas section. Cost is the slope; limits are the cliff — cost-management catches spend trending up over weeks, infrastructure-limits catches the hard wall a single new resource is about to hit.
 - [Autonomous Loops](autonomous-loops.md) — the highest-leverage cost surface; kill switches are also cost circuit breakers; the [watchdog pattern](autonomous-loops.md#the-watchdog-pattern) is the prevention layer for the metered-service trap
 - [The Two Roles](two-roles.md) — model-tier discipline rides on the Strategist/Executor split
 - [Architecture Graphs](architecture-graphs.md) — the antidote to "load every file into context just in case"

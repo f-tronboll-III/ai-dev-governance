@@ -128,6 +128,52 @@ If the watchdog is doing anything beyond poll → classify → alert (+ opt-in a
 
 ---
 
+## Webhooks: respond 200, then do the work
+
+Webhook handlers are loops too — fired by an external vendor, processing payloads under no human attention. They share most of this doc's discipline (kill switch, heartbeat, owner, tier) and add one rule of their own that exists nowhere else.
+
+**External-vendor webhooks must return HTTP 200 for every request, regardless of what happens inside the handler.**
+
+This is counterintuitive. Every other endpoint in the system uses status codes to communicate outcome. Webhooks invert it: the status code is *to the vendor's retry-and-suspend machinery,* not to a human caller. A 4xx or 5xx tells the vendor your endpoint is broken. Enough of them and the vendor disables the endpoint — sometimes for an hour, sometimes for a week, almost always without a notification you'll read in time. One scar tissue case: three vendors' webhook endpoints suspended simultaneously after a deployment regression; inbound email, payment confirmations, and inventory sync went dark for a week across multiple services before the suspension itself was diagnosed.
+
+### The pattern
+
+The entire POST handler body sits inside a try/catch. The catch returns 200 with a logged error. Five concrete rules:
+
+1. **Always return 200 to external vendors.** Not 4xx for a malformed payload. Not 5xx for a database failure. Not 401 for a bad signature. The HTTP layer says *"received,"* always.
+
+2. **Log everything that would have been a non-200.** A structured prefix (e.g. `[<vendor>-webhook]`) plus the error and enough payload context to investigate. The log is the error channel; the HTTP response is not.
+
+3. **Signature verification runs, but failure returns 200.** A failed signature check is still logged, the request is silently dropped, and the vendor sees a clean acknowledgment. An attacker hammering your endpoint with bad signatures cannot cause a suspension; the operator investigating the logs catches the pattern.
+
+4. **Acknowledge fast, work async.** If the actual work — image generation, downstream API calls, large database writes — takes more than a second or two, acknowledge with 200 immediately and kick off the work asynchronously. A handler that holds the HTTP response open while it processes is one slow downstream call away from a vendor timeout, which the vendor counts as a failure even though the work eventually succeeded.
+
+5. **Internal webhooks are exempt.** Webhooks between your own services (authenticated via a shared internal secret) follow standard HTTP semantics — the caller is your own code, and it handles retries. Mark them clearly in the route handler so the next reader doesn't apply the wrong rule.
+
+### How recovery shifts
+
+Returning 200 always means the HTTP layer is no longer telling you when things go wrong. The recovery surface moves to two places:
+
+- **An idempotency primitive in the database.** A unique constraint on the vendor's event ID is the standard shape — the same event arriving twice (because the vendor retried before your async work finished) collides at insert and the duplicate is dropped without effect. This is also what lets you safely replay failed events later.
+- **An audit ledger with a `processedAt` column.** Every webhook event lands as a row, marked unprocessed until the async work completes. The operator's replay surface is *"every row where `processedAt IS NULL` and `processingError IS NOT NULL`,"* indexed on `processedAt` for fast scans. Replay re-runs the work; the idempotency primitive makes it safe.
+
+The vendor sees a healthy endpoint. The operator sees a queryable record of every event and its outcome. The system gets retries without the suspension cliff.
+
+### Anti-patterns
+
+| Anti-pattern | Why it bites | Do instead |
+| :---- | :---- | :---- |
+| Return 500 on processing failure so the vendor retries | One bad payload turns into a retry storm; enough storms and the endpoint suspends | Return 200, log, queue for operator replay from the audit ledger |
+| Return 401 on bad signature so attackers see they failed | Repeated 401s look identical to a broken endpoint to the vendor; you get suspended defending yourself | Return 200, log the signature failure, drop silently |
+| Do the work synchronously and return 200 after | Vendor timeout (often 10-30s) counts as a failure regardless of eventual success | Acknowledge 200 immediately, fire async work, write the result to the audit ledger |
+| Apply the 200-only rule to internal webhooks too | Loses the ability to retry from your own caller; debugging gets harder for no safety gain | Internal-only webhooks use standard HTTP; mark them in the route |
+
+### The five-second test
+
+*If this handler errored on every request for an hour, would the vendor still consider my endpoint healthy?* If yes, the pattern is in place. If no — if a real error condition can produce a non-200 response — the suspension cliff is one bad day away.
+
+---
+
 ## When a loop misfires
 
 Recovery has its own protocol — the same shape as the [error-recovery rule for file handling](file-handling.md#rule-5--error-recovery), applied to a loop instead of a session.

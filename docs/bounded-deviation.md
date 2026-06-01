@@ -70,4 +70,5 @@ Gate 2 fails, so the Executor does **not** touch it. Instead it notes "invoice c
 - [The Sanity Check](sanity-check.md) — where deviations originate and how a delta is written
 - [The Delta Log](delta-log.md) — where deviations accumulate until they become standards
 - [The Two Roles](two-roles.md) — why this freedom belongs to the Executor
+- [Durable Memory](durable-memory.md) — a recurring delta promoted to a standing rule lands as a memory entry
 - Back to the [main playbook](../README.md)
