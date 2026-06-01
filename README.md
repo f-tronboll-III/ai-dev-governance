@@ -191,6 +191,7 @@ Each facet of the model, presented in isolation with worked examples. Start with
 | [The Roadmap System](docs/roadmap-system.md) | Two genres, the index, and why surfaces are allowed to drift |
 | [The QA Gate](docs/qa-gate.md) | The fixed checklist that defines "done" |
 | [Architecture Graphs](docs/architecture-graphs.md) | Generated maps of repo structure that turn the Strategist from blind to fluent |
+| [Infrastructure Limits](docs/infrastructure-limits.md) | A dated, operator-verified file that beats stale AI memory about vendor limits, prices, and gotchas |
 | [Autonomous Loops](docs/autonomous-loops.md) | Kill switches, heartbeats, and the discipline for code that runs when no one is watching |
 | [Secrets and Rotation](docs/secrets-and-rotation.md) | Credential hygiene with two AIs in the room; rotation and leak protocols |
 | [Dependency Management](docs/dependency-management.md) | Lockfile-as-truth; cadences for patch / minor / major; monthly audit |

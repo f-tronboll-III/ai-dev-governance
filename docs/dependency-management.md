@@ -139,4 +139,5 @@ The discipline traded a half-day round trip for a 10-minute lockfile read, and t
 - [Architecture Graphs](architecture-graphs.md) — the per-repo package list and version data the Strategist reads first
 - [Secrets and Rotation](secrets-and-rotation.md) — same shape: declared cadence, audit log, escalation discipline
 - [Cost Management](cost-management.md) — the monthly review where dependency-audit findings get prioritized alongside spend
+- [Infrastructure Limits](infrastructure-limits.md) — the sibling file: dependencies are one half of "things outside your control that affect your build"; vendor limits are the other half. Same dated-and-verified discipline applies to both.
 - Back to the [main playbook](../README.md)

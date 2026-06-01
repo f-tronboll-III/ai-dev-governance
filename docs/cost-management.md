@@ -88,6 +88,36 @@ When a bill comes in materially over budget — say, 50% over, or any unexplaine
 
 The principle: **a surprise bill is a governance failure, not a vendor failure.** Treat it the same way you'd treat a deploy that broke production — fix, document, learn.
 
+## The metered-service trap
+
+One cost failure deserves its own section because it hides better than the others and bites harder. Per-second-billed serverless dependencies — the modern shape of databases, compute, queues, AI APIs — promise "scale to zero" as a headline feature. The promise is real, but conditional: the service scales to zero only when nothing is keeping it awake. The trap is that *almost everything in a typical web stack keeps it awake by accident.*
+
+### How the trap closes
+
+A team adopts a serverless Postgres with "sleeps after 5 minutes of inactivity" billing. The app works perfectly on day one. Two billing periods later the bill is several hundred dollars higher than expected. Investigation reveals:
+
+- A liveness probe pings `/api/health` every minute from an uptime monitor. `/api/health` runs `SELECT 1` against the DB. The DB never sees a 5-minute idle window. *Bills 24/7.*
+- A pooled DB client is instantiated at module scope and reused across function invocations. The hosting platform keeps function instances warm. The pool holds an open socket to the DB. The DB never sees an idle window. *Bills 24/7.*
+- A cron runs every 5 minutes and opens a transaction even when there's no work to do. The DB wakes for the transaction, processes nothing, settles — and the next cron arrives before the idle timer expires. *Bills 24/7.*
+
+In every case, the app works *better* than it would if the DB were actually sleeping (no cold starts, every request fast). The bill is the only symptom. And the bill arrives at the end of the billing period, so the failure persists for an average of two to four weeks before anyone notices, and another billing cycle before the team has enough data to diagnose.
+
+The scariest version: the same pattern applies to per-token LLM APIs (a background agent that polls a model in a tight loop), per-invocation function platforms (a misconfigured retry storm), per-GB egress (an asset that bypasses your CDN), and per-message queues (a stuck consumer that keeps the queue hot). The shape generalizes: **any per-unit-billed surface that has an idle-and-cheap state will, by default, be kept out of that state by something innocuous in your stack.**
+
+### The rule, specifically
+
+1. **For every per-unit-billed dependency, name what could keep it hot.** Health probes, warm pools, polling crons, retries, idle connections. Write the list in [`infrastructure-limits.md`](infrastructure-limits.md) under that vendor's gotchas. If you can't enumerate them, you can't defend against them.
+2. **Separate liveness probes from health probes.** Liveness ("is the web tier serving?") returns 200 with no dependency touch. Health ("is the DB reachable?") touches the dependency but runs on a cadence longer than the dependency's idle threshold, and is reached only by authenticated probes the operator controls. The two roles get two routes, two cadences, two access controls. This single split resolves the most common version of the trap.
+3. **Audit by the bill, not by the symptom.** The app working is not evidence the dependency is sleeping. The vendor's billing dashboard — hours billed, requests counted, tokens consumed — is the only honest signal. Read it monthly during the cost review (rule 3 in this file); read it weekly during a new integration's first month.
+4. **Treat "never sleeps" as a Tier 0 cost incident.** A dependency that's supposed to scale to zero but doesn't is the same shape as a cron that fires but auth-fails: silent, compounding, expensive. Stop the bleed (kill the keepalive, kill the pool, kill the cron), investigate, document, and add the failure mode to the vendor's gotchas in `infrastructure-limits.md` so the next session can't re-introduce it.
+5. **Build a watchdog when the dependency is critical.** The [watchdog pattern](autonomous-loops.md#the-watchdog-pattern) is exactly this trap's prevention layer: poll the vendor's consumption API, classify each project as sleeping / periodic-OK / never-sleeping, alert on regression, optionally auto-mitigate on opt-in. The watchdog catches a regression within hours of the offending deploy instead of weeks into the next billing cycle.
+
+### The five-second test
+
+*If nothing real is happening, will this dependency still be billing me?* If the honest answer is "I don't know," you have a watchdog-shaped gap. If the answer is "yes," you have a trap closing.
+
+---
+
 ## When the Strategist is tempted to "use the best model for everything"
 
 Same shape as the Strategist's other temptations: feels efficient, costs more, and there's almost no situation where the most expensive model is actually required for the task at hand.
@@ -135,7 +165,8 @@ The discipline traded a $300/month surprise for a 30-minute exercise that, repea
 
 ## Related
 
-- [Autonomous Loops](autonomous-loops.md) — the highest-leverage cost surface; kill switches are also cost circuit breakers
+- [Infrastructure Limits](infrastructure-limits.md) — the dated, operator-verified file that records every vendor's plan, limits, and scar-tissue gotchas; the metered-service trap above lives in its gotchas section
+- [Autonomous Loops](autonomous-loops.md) — the highest-leverage cost surface; kill switches are also cost circuit breakers; the [watchdog pattern](autonomous-loops.md#the-watchdog-pattern) is the prevention layer for the metered-service trap
 - [The Two Roles](two-roles.md) — model-tier discipline rides on the Strategist/Executor split
 - [Architecture Graphs](architecture-graphs.md) — the antidote to "load every file into context just in case"
 - [The QA Gate](qa-gate.md) — where a "declared cost" check for new loops can live

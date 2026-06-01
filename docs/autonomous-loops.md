@@ -82,6 +82,52 @@ Before flipping a new loop to live, run it on its real schedule with side effect
 
 This is the single discipline most often skipped, and it's the one that catches the silent-success-with-wrong-side-effect failure mode. A loop that *runs* correctly but *acts* incorrectly is the most expensive bug class in autonomous-loop work, because the heartbeat is green the whole time. Dry-run is how you see what the loop would have done before it actually does it.
 
+## The watchdog pattern
+
+A loop that watches your *own* infrastructure for cost or limit regressions is a specific, high-leverage shape worth naming. The trigger is almost always the same scar: a per-unit-billed dependency (a serverless DB, a per-token LLM API, a per-invocation function platform, a per-message queue) drifted out of its cheap state and nobody noticed until the bill arrived weeks later. See the [metered-service trap](cost-management.md#the-metered-service-trap) for the failure mode in full; this section is the prevention layer.
+
+### Shape
+
+A scheduled loop — hourly is a reasonable default — that:
+
+1. **Reads the vendor's consumption API.** Most metered vendors expose a per-resource consumption endpoint: hours billed this cycle, requests counted, tokens consumed, GB transferred. Read what's available on the plan tier you're on; some endpoints are paid-plan-only and the loop must fall back to whatever projects/endpoints data is exposed at your tier.
+2. **Classifies each resource** into a small set of states. A workable starter set: `sleeping` (using the cheap idle state as intended), `periodic_ok` (waking on schedule, sleeping between, normal), `fault` (waking and never sleeping, or waking far more than the workload justifies), `dollar_warn` (projected cost above a per-resource threshold). The classification is per-resource, per-run, persisted so the next run can detect transitions.
+3. **Alerts on state changes**, not on every run. A resource that's been in `fault` for six hours doesn't need six alerts; it needs one alert when it enters `fault` and one when it leaves. A daily digest summarizes everything still in a degraded state.
+4. **Optionally auto-mitigates** — but only on an explicit per-resource opt-in allowlist, and only for mitigations that are safe to apply unattended (forcing a serverless endpoint to sleep, lowering a budget cap, pausing a non-critical cron). Auto-mitigation ships **disabled by default** and is enrolled per resource by the operator after the alerting layer proves stable.
+5. **Honors a kill switch.** The watchdog is itself an autonomous loop; everything in this doc applies to it. Heartbeat, dry-run on first deploy, named owner, the works. A misbehaving watchdog that alerts hourly during a vendor outage is its own incident.
+
+### Why "alert by default, auto-mitigate by opt-in"
+
+The asymmetric cost: a false-positive alert is a few seconds of operator attention; a false-positive auto-mitigation is a customer-facing outage. A resource that *looks* never-sleeping might be a high-traffic production DB that's correctly always-awake; auto-suspending it would be catastrophic. The opt-in allowlist is how the operator says "I've thought about this resource specifically and yes, auto-suspend is safe here." Without the allowlist, the watchdog can only see the symptom — it can't see the operator's knowledge of which resources are intentionally hot.
+
+This is the same asymmetry that puts [bounded deviation](bounded-deviation.md) on a tight leash for the Executor: when the cost of a wrong action exceeds the cost of inaction, default to inaction.
+
+### What the watchdog detects that humans miss
+
+Three failure modes the watchdog catches reliably and humans miss reliably:
+
+- **Regression on deploy.** A new health-probe route, a new module-scope pool, a new polling cron — each can silently push a sleeping resource into `fault`. The watchdog catches the transition within hours; a human catches it weeks later when the bill arrives.
+- **Drift from a working baseline.** A resource that has been `sleeping` for months suddenly enters `periodic_ok` (waking more often than expected). The transition is the signal that *something changed* even when the change is well within budget. Investigating early prevents the drift from compounding.
+- **Cost spike on a non-billing-day.** Most vendors expose mid-cycle consumption; the watchdog can project month-end cost daily. A spike on day 8 of a 30-day cycle is visible day 8, not day 31.
+
+### Anti-overengineering, applied to the watchdog itself
+
+The MVP watchdog is: poll → classify → alert. That's it. Resist the temptation to add:
+
+- A web dashboard. (The alerts and a markdown digest are the surface.)
+- Anomaly-detection ML. (Threshold-based classification catches every meaningful case.)
+- Multi-region deployment. (One region is fine for a loop that runs hourly.)
+- Per-endpoint cost attribution beyond a simple projection. (The bill is the truth; the projection is a hint.)
+- Auto-editing autoscale limits or plan tiers. (Far too dangerous unattended.)
+
+If the watchdog is doing anything beyond poll → classify → alert (+ opt-in auto-suspend), you've drifted into building a product. Stop and checkpoint.
+
+### The five-second test
+
+*If a resource silently regressed today, when would I find out?* If the answer is "the next bill," the watchdog isn't there or isn't watching the right surface. If the answer is "within hours, via an alert that names the resource," the watchdog is doing its job.
+
+---
+
 ## When a loop misfires
 
 Recovery has its own protocol — the same shape as the [error-recovery rule for file handling](file-handling.md#rule-5--error-recovery), applied to a loop instead of a session.
@@ -131,6 +177,8 @@ The discipline traded a 30-minute up-front setup for a 9-day silent outage avert
 
 ## Related
 
+- [Cost Management](cost-management.md) — the [metered-service trap](cost-management.md#the-metered-service-trap) is exactly the failure mode the watchdog pattern is built to catch
+- [Infrastructure Limits](infrastructure-limits.md) — the file the watchdog's classifications and thresholds should be tuned against; gotchas the watchdog uncovers belong in this file
 - [The QA Gate](qa-gate.md) — the post-execution checklist that applies to loop deploys just as it does to feature deploys
 - [The Sanity Check](sanity-check.md) — runs inside the loop body for state-mutating loops, exactly as it would inside a Tier 2 handoff
 - [Foundation 1 in the architecture reference](architecture.md#foundation-1--repo-schema--routing) — where the orchestrator/shared-resource pattern lives
