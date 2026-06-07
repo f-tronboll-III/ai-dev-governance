@@ -236,4 +236,10 @@ Borrow it, adapt it, make it yours. Prose is licensed [CC BY 4.0](LICENSE); attr
 
 ---
 
+## Provenance
+
+Patterns documented here are used in production at [Backcountry Tech Solutions](https://backcountry.tronboll.us) and [Steampunk Farms](https://steampunkfarms.org), where this playbook governs ~20 repos across three families. The voice and the lessons are F. Tronboll III's; the operational implementation runs there.
+
+---
+
 <p align="center"><strong>Stop babysitting your agents. Start governing them.</strong></p>

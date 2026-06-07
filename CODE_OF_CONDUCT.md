@@ -24,7 +24,7 @@ be the same shape: honest, specific, and focused on the work.
 
 ## Enforcement
 
-This is a one-maintainer repo. I'll lock threads, delete comments, and
+This is a one-author repo. I'll lock threads, delete comments, and
 block accounts when I have to. I won't run a tribunal — if behavior
 crosses the line, the consequence happens and the thread moves on.
 
