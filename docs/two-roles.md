@@ -130,6 +130,23 @@ It would be cleaner if the four categories were enforced mechanically — CI rul
 
 The role split establishes *the Strategist doesn't write.* This section establishes *the Executor doesn't write past the Operator's accountability.* Together they're the same shape at two scales — the agent's authority is always bounded by who undoes the damage.
 
+## Non-trust tools — instruments, not actors
+
+The Strategist / Executor / Operator triple is sometimes joined by a fourth category that *looks* like an actor but isn't: a third-party model wrapper, a recon agent, a divergent-brainstorm tool, a cheap-tier gatherer fanned out across a codebase. These produce text that reads exactly like a Strategist's analysis or an Executor's finding — and that resemblance is the trap. Naming the category is what stops the Executor (or, worse, the Strategist) from treating a wrapper's output as a deliverable rather than as raw material.
+
+A non-trust tool is bound by four clauses:
+
+- **Tools, not actors.** Output is unverified input to a verifying Strategist or Executor step — *never* a deliverable on its own.
+- **Never mutate production.** A non-trust tool reads, generates text, and returns a response. It does not commit, deploy, send, charge, or write to a database.
+- **Never author durable governance or executable artifacts.** It may *propose* a handoff, a config, or a draft; the Strategist or Executor authors the final version that anything downstream depends on.
+- **Ingest no PII.** Customer, donor, patient, or employee personal data never crosses the wrapper boundary. If a task requires reasoning over personal data, it stays on the in-trust actors.
+
+**Why this matters.** The temptation is to take a wrapper's fast, cheap, plausible-sounding output and act on it *because* it's fast and cheap. The shape of that failure is identical to acting on a stale memory entry without re-verifying it: the wrapper sounded right, and right-sounding quietly became done. The fix is a literal tag on every fact a non-trust tool surfaces — `[TOOL-NAME-UNVERIFIED]` or any marker you like — that doesn't come off until an in-trust actor confirms it. Until then it's a lead, not a fact.
+
+**The genuine-outside-view bonus.** There's a second, quieter reason to keep a non-trust tool around. When your Strategist is itself an instance of one model family, its self-review can't catch its own family's blind spots — it shares them. A non-trust tool drawn from a *different* model family is the only path to genuine, non-lineage red-teaming: a second opinion that doesn't inherit the first one's assumptions. That's worth keeping in mind when you pick the wrapper — sameness of lineage is exactly what you don't want in the outside view.
+
+See [Model Orchestration](model-orchestration.md) for the broader pattern of which actor does what kind of work on which tier; a non-trust tool is a specific case of the "down-model the gathering" rule extended outside the in-trust model family.
+
 ## Related
 
 - [Checkpoints & Handoffs](checkpoints-handoffs.md) — the artifact that crosses the line
@@ -137,6 +154,7 @@ The role split establishes *the Strategist doesn't write.* This section establis
 - [The Sanity Check](sanity-check.md) — why the Executor, not the Strategist, validates against production
 - [Bounded Deviation](bounded-deviation.md) — what the Executor may do without asking
 - [Governance Sync](governance-sync.md) — how Strategist and Executor stay aligned across sessions
+- [Model Orchestration](model-orchestration.md) — which tier does which kind of work; non-trust tools as the cross-family case of "down-model the gathering"
 - [The Context Cascade](context-cascade.md) — the rules the Executor reads at startup
 - [Architecture reference](architecture.md) — where this role split sits in the larger model
 - Back to the [main playbook](../README.md)

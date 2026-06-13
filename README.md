@@ -190,6 +190,7 @@ Each facet of the model, presented in isolation with worked examples. Start with
 | [Governance Sync](docs/governance-sync.md) | Keeping Strategist and Executor in sync through files; handling sync conflicts |
 | [The Roadmap System](docs/roadmap-system.md) | Two genres, the index, and why surfaces are allowed to drift |
 | [The QA Gate](docs/qa-gate.md) | The fixed checklist that defines "done" |
+| [Model Orchestration](docs/model-orchestration.md) | Down-model the gathering, keep the judging Heavy — the rule that turns top-tier reasoning loops from waste-prone to disciplined |
 | [Durable Memory](docs/durable-memory.md) | One fact per file, typed and dated, in an indexed cross-session store — the antidote to re-correcting the same thing every session |
 | [Architecture Graphs](docs/architecture-graphs.md) | Generated maps of repo structure that turn the Strategist from blind to fluent |
 | [Infrastructure Limits](docs/infrastructure-limits.md) | A dated, operator-verified file that beats stale AI memory about vendor limits, prices, and gotchas |

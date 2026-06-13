@@ -76,4 +76,5 @@ The Strategist's goal was met. The Strategist's *method* was corrected by the on
 - [The Delta Log](delta-log.md) — where deltas are tallied so recurring ones become standards
 - [The Two Roles](two-roles.md) — why the check belongs to the Executor, and where the Executor itself stops via [the Operator's hard line](two-roles.md#the-operators-hard-line-what-even-the-executor-doesnt-do)
 - [Durable Memory](durable-memory.md) — recalled memories are design claims; the sanity check validates them against live state before action
+- [Model Orchestration](model-orchestration.md) — the pre-edit Sanity Pass is non-down-modelable by rule; it stays on the heavy tier no matter the deadline
 - Back to the [main playbook](../README.md)

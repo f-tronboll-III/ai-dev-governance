@@ -116,4 +116,5 @@ That's the whole loop. Bounded Deviation is the safety valve; the Delta Log is t
 - [Bounded Deviation](bounded-deviation.md) — the three gates whose deviations the log counts
 - [The Context Cascade](context-cascade.md) — where promotions land
 - [Governance Sync](governance-sync.md) — sync conflicts also write a line to this log
+- [Model Orchestration](model-orchestration.md) — a recurring delta about model choice on a class of task is the signal to revise the orchestration rules, not just to tally another line here
 - Back to the [main playbook](../README.md)

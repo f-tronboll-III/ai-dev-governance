@@ -170,4 +170,5 @@ The discipline traded a $300/month surprise for a 30-minute exercise that, repea
 - [The Two Roles](two-roles.md) — model-tier discipline rides on the Strategist/Executor split
 - [Architecture Graphs](architecture-graphs.md) — the antidote to "load every file into context just in case"
 - [The QA Gate](qa-gate.md) — where a "declared cost" check for new loops can live
+- [Model Orchestration](model-orchestration.md) — the right framing is waste elimination, not spend minimization; model orchestration is the lever that down-models the gathering and keeps the judging on the heavy tier
 - Back to the [main playbook](../README.md)
