@@ -119,6 +119,44 @@ This rule sounds heavy but is cheap to follow because regeneration is a one-comm
 
 The flip side: the QA gate (see [qa-gate.md](qa-gate.md)) bakes regeneration in for changes that touch many files. A change that touches a single test file doesn't trigger regeneration; a change that adds three routes and a cron does. The exact threshold lives in the repo's `AGENT.md`.
 
+## The Graph Consultation Pass
+
+Rules 1–5 govern **production** of graphs. This section governs **consumption** — and consumption is where graphs usually fail, because a generated, committed, current graph that nobody opens is worth exactly as much as no graph at all.
+
+The obligation splits across the two roles by what each one can actually do, and it applies to a **narrow, enumerated** set of work. Everything else gets light consultation or none, and you just note that.
+
+**Triggers.** The pass applies to work that:
+
+- touches two or more families, or
+- modifies a shared resource (the orchestrator, the registry, a cross-family engine), or
+- introduces material change in a load-bearing domain — authentication and authorization, billing or revenue surfaces, content and voice engines, multi-tenancy, database-layer decisions — or
+- locks a roadmap item with documented cross-repo dependencies.
+
+A narrow, single-repo, low-risk change inside one family's established conventions doesn't need it.
+
+### The Strategist's obligation
+
+Before producing a triggered handoff, assessment, or major recommendation, the Strategist must:
+
+- **Read and cite** the relevant graph artifacts by name — the repo graph, the onboarding doc, the domain graph where one exists, and the cross-repo synthesis documents.
+- **Include each cited graph's generation timestamp.** This is mandatory, not decorative. Staleness is load-bearing, and a citation without a date is a citation you can't evaluate.
+- **Cite concrete findings**, or explicitly state that none were found: *"the graph shows this pattern in four repos; two already use the proposed approach successfully"* or *"no material signal after reviewing X, Y, Z."* Both are acceptable. Silence is not.
+- **Flag a missing graph.** If triggered work touches a significant repo that has no current graph, say so in the handoff — and the Executor treats generating it as part of executing the work.
+
+### The Executor's obligation
+
+During the [pre-edit Sanity Pass](sanity-check.md) on triggered work, the Executor must:
+
+- **Run the diff-scoped analysis** of the change against the repo's committed graph, and include the output — or a structured summary of it — in the delta report.
+- **Ask the graph at least one targeted architectural question** when the work is cross-family, touches a shared resource, or introduces a new pattern.
+- **Evaluate staleness against reality**, not just against the timestamp: is the graph older than the repo's most recent significant architectural commit? Say so in the delta, and recommend a refresh when the repo is a significant one.
+
+### When the consultation is missing
+
+If a triggered handoff arrives *without* the required citations, the Executor emits a [delta](sanity-check.md) documenting the gap and then does one of two things: pauses for clarification, or proceeds under an explicitly documented assumption about the architectural context. Either is fine. What isn't fine is proceeding as though the consultation happened.
+
+Both sides have teeth here on purpose. A Strategist that skips the citations gets a delta. An Executor that skips the diff-scoped analysis on triggered work is itself delta-worthy in any subsequent review. The pass only works if it's symmetric — otherwise it degrades into "the Strategist writes graph citations nobody reads," which is the same failure one level up.
+
 ## Worked example
 
 A shop runs five repos. The Strategist is asked to extract the billing logic from the storefront and the membership site into a shared `@org/billing` package.
@@ -144,6 +182,9 @@ Total Strategist time on the picture-gathering step: 10 minutes instead of 60. T
 | Skip the registry-level graph because "we know our repos" | Knowing them by memory doesn't survive a Strategist handoff; the next Strategist session doesn't have that memory | Maintain a short cross-repo graph alongside the per-repo ones |
 | Paste the graph into chat without the timestamp | Strategist can't tell if it's fresh | First line of the generated file is always the generation timestamp + commit hash |
 | Put behavior detail in the graph | Becomes maintenance burden, becomes outdated, defeats the purpose | Wiring only. Behavior lives in code |
+| Generate graphs faithfully and never consult them | A current graph nobody opens is worth what no graph is worth | The consultation pass, with citations, on triggered work |
+| Cite a graph without its generation timestamp | An undated citation can't be evaluated for staleness — it just looks rigorous | Timestamp is mandatory in every citation |
+| Executing a triggered handoff that skipped the citations, as if it hadn't | The design's architectural grounding is unknown and now invisible | Emit a delta; pause or proceed under a written assumption |
 
 ## Adapt it to your setup
 
@@ -155,6 +196,8 @@ Total Strategist time on the picture-gathering step: 10 minutes instead of 60. T
 ## Related
 
 - [The Two Roles](two-roles.md) — explains the read-only inspection window the graph extends
+- [The Sanity Check](sanity-check.md) — the pre-edit pass whose fourth leg is this doc's consultation obligation
+- [The Trust Gradient](trust-gradient.md) — the receipt standard behind "cite the graph with its timestamp"
 - [The Context Cascade](context-cascade.md) — the other Strategist input that travels with the graph
 - [The QA Gate](qa-gate.md) — the post-execution checkpoint that triggers regeneration
 - [Autonomous Loops](autonomous-loops.md) — the graph is where crons and webhooks first become legible across repos

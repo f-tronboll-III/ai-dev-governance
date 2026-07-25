@@ -1,8 +1,8 @@
 # The Architecture
 
-> The reference half of the playbook. The [main README](../README.md) tells the story (the six lessons); this file is the working manual — the four foundations, the layered protocols that bolt onto them, and the end-to-end lifecycle of one phase.
+> The reference half of the playbook. The [main README](../README.md) tells the story (the seven lessons); this file is the working manual — the four foundations, the layered protocols that bolt onto them, and the end-to-end lifecycle of one phase.
 
-**Part of:** [AI Dev Governance](../README.md) · **Read this when:** you've absorbed the six lessons and want the operating spec.
+**Part of:** [AI Dev Governance](../README.md) · **Read this when:** you've absorbed the seven lessons and want the operating spec.
 
 ---
 
@@ -88,7 +88,22 @@ flowchart LR
     X -->|logs to changelog| H
 ```
 
-A third human-shaped role threads through the diagram without appearing in it: the **Operator** — the person who owns the repo, approves deltas, and runs the manual steps in any Operator Action Block. The Strategist and Executor are AIs; the Operator is the human accountability layer that neither AI is allowed to bypass. See [The Two Roles](two-roles.md#the-operator-the-implicit-third-role) for the full definition.
+A third human-shaped role threads through the diagram without appearing in it: the **Operator** — the person who owns the repo, approves deltas, and runs the manual steps in any Operator Action Block. The Strategist and Executor are AIs; the Operator is the human accountability layer that neither AI is allowed to bypass. See [The Two Roles](two-roles.md#the-operator-the-implicit-third-role) for the full definition, and [Operator Clearances](operator-clearances.md) for which of those manual steps should still *be* manual.
+
+#### The cast beyond two
+
+Two roles is the spine, not the ceiling. In practice the cast grows, and the additions sit on a second axis — not *who commits* but *whose output is believed*:
+
+| Actor | Commits? | Output believed? | Typical job |
+| :---- | :---- | :---- | :---- |
+| **Strategist** | No | Yes | Research, architecture, spec authoring |
+| **Co-Strategist / red team** | No | Strategy yes; live-state claims verified first | Adversarial critique, alternate architectures, doctrine review |
+| **Executor** | **Yes** | Yes | Reality-check, implement, QA, ship — and orchestrate the tiers below it |
+| **Recon agent** | No | No — tagged until verified | Fan-out search, live-web recon, divergent options, first drafts |
+| **Offload model** | No | No — tagged until verified | Bulk compute, distillation, batch evaluation, the non-lineage outside view |
+| **Operator** | Rarely | — | Sets the grades, approves deltas, owns what can't be undone |
+
+Every added actor inherits the two-role discipline unchanged: only the Executor commits, and every design is checked against production before it runs. What the additions require is a grading rule — how a fact gets promoted from *lead* to *verified*, and why a read-only critic earns provisional rather than full trust. → Deep dive: [The Trust Gradient](trust-gradient.md).
 
 #### Tier routing
 
@@ -228,7 +243,7 @@ The hard part isn't the happy path — it's what happens when Strategist and Exe
 
 ### Layered protocol — The roadmap system
 
-A multi-layer ledger that lets two roles and ~20 repos agree on "what's shipped, queued, deferred" without anyone holding the whole graph in their head.
+A multi-layer ledger that lets a small cast and ~30 repos agree on "what's shipped, queued, deferred" without anyone holding the whole graph in their head.
 
 **Two genres — never merged:**
 
@@ -255,11 +270,14 @@ Conflation is the failure mode: when a handoff bundles product-shape items (deci
 
 ### Layered protocol — the supporting disciplines
 
-The four protocols above are the spine. As an enterprise grows, eight more disciplines become load-bearing — each one a deep-dive in its own right.
+The four protocols above are the spine. As an enterprise grows, eleven more disciplines become load-bearing — each one a deep-dive in its own right.
 
-Model Orchestration is the meta-discipline — it governs which tier of reasoning each of the other disciplines runs on. The Sanity Pass is Heavy by construction; Architecture-Graph generation can fan out to the cheap tier; the pre-edit read is whichever tier the surface justifies. It's listed first because it precedes the others functionally: it decides *how* each one is run, not just *that* it is.
+Model Orchestration and the Trust Gradient are the meta-disciplines — together they govern *which tier* of reasoning each of the other disciplines runs on and *whose output* is believed when it comes back. They're listed first because they precede the others functionally: they decide how each one is run and what counts as a result, not just that it happened.
 
-- **[Model Orchestration](model-orchestration.md).** The top-tier reasoning model is also the one tempted to do the grepping. Down-model the *gathering* — search, read, enumerate, bulk-extract — to a cheaper tier, and keep the *judging* — synthesis, prioritization, the Sanity Pass — on the heavy tier. Heavy is the default; you justify routing down, never staying up. The discipline turns an agentic loop from waste-prone to deliberate without sacrificing quality on the decisions that matter.
+- **[Model Orchestration](model-orchestration.md).** The top-tier reasoning model is also the one tempted to do the grepping. Down-model the *gathering* — search, read, enumerate, bulk-extract — to a cheaper tier, and keep the *judging* — synthesis, prioritization, the Sanity Pass — on the heavy tier. Heavy is the default; you justify routing down, never staying up. Tier and reasoning effort are two independent axes: risk picks the tier, difficulty picks the effort.
+- **[The Trust Gradient](trust-gradient.md).** Once a recon agent, a bulk-compute model, and a read-only critic are all producing text, they all produce the *same* text — fluent and confident. Grade the actor, not the prose: authoring actors are believed, a provisional co-strategist is believed on strategy but checked on live state, and non-trust surfaces produce tagged leads that expire. Verification flows one way — up.
+- **[Operator Clearances](operator-clearances.md).** A gate either *prevents* something or merely *informs* the human. Gates that only inform become clearances: the agent acts, a durable reviewable artifact records it, and a one-line announcement preserves the awareness. Gates that genuinely prevent — custody, money, outward sends, unbounded destruction — never graduate.
+- **[Reading the Outside World](external-sources.md).** A fetch that returns a JavaScript shell, a stale secondary reference, or a firewall block all look like success. Go to the primary source and escalate the *tool* — plain fetch, then a rendering browser, then optional cheap-tier distillation — rather than downgrading to whatever copy is easiest to read. Contract-critical facts get checked against the rendered primary.
 - **[Durable Memory](durable-memory.md).** The agent forgets between sessions by default. A typed, indexed cross-session knowledge store — one fact per file, frontmatter declares the contract, index loads at session start — is what keeps yesterday's lesson binding tomorrow. Without it, the agent re-proposes approaches you've rejected and re-learns the same gotchas every session.
 - **[Architecture Graphs](architecture-graphs.md).** A Strategist designs from outside the codebase. Generated structure maps — modules, routes, env vars, cron jobs, external services — are the highest-leverage Strategist input after the `AGENT.md` cascade. Read first on any Tier 3 change; regenerated by the Executor as part of the QA gate when many files change.
 - **[Infrastructure Limits](infrastructure-limits.md).** Every vendor in the stack has limits, quotas, and prices that AI training data is confidently wrong about. A dated, operator-verified, in-repo file is the source of truth; every session that touches infrastructure reads it before reasoning and updates it after changing anything. Gotchas are first-class — scar-tissue memory of every silent failure mode the team has learned.
@@ -268,7 +286,7 @@ Model Orchestration is the meta-discipline — it governs which tier of reasonin
 - **[Dependency Management](dependency-management.md).** The lockfile is the source of truth. The Strategist designs against the lockfile, not the manifest. Upgrade cadence is declared per release tier; majors are Tier 3. A monthly audit catches divergence, vulnerabilities, and abandonment.
 - **[Cost Management](cost-management.md).** Every recurring spend has a named owner and a budget. Spend reviews happen on a fixed cadence; overruns trigger the same backfill discipline as a Tier 0 hotfix. Circuit breakers fail closed.
 
-These eight layered disciplines connect into the spine the same way the others do: they ride on the four foundations, they accumulate evidence in changelogs, and they earn their place by surviving real failures. Adopt them when your shape demands them — not before.
+These layered disciplines connect into the spine the same way the others do: they ride on the four foundations, they accumulate evidence in changelogs, and they earn their place by surviving real failures. Adopt them when your shape demands them — not before.
 
 ---
 
@@ -284,9 +302,9 @@ A typical Tier-2 phase:
 6. **Executor** runs post-execution QA (type-check, diff audit, security scan, hygiene).
 7. **Executor** commits and pushes — the deploy is the review.
 8. **Executor** updates the repo's `AGENT.md` changelog with the phase entry, any deltas, and any family-standard candidates. Recurring or cross-family deltas also land in the [Delta Log](delta-log.md).
-9. **Executor** writes a final checkpoint with all outstanding Operator Action Block items (env vars to paste, migrations to run, smoke tests to walk).
+9. **Executor** writes a final checkpoint, including an **announce block** naming every production-structural change it applied (schema columns, env vars set, data fixes) and an **Operator Action Block** holding only what genuinely can't be cleared — an outward-facing send, a registrar step, a billing change, a smoke test to walk by hand.
 10. **Executor** runs Governance Sync, then regenerates the architecture graph if many files changed.
-11. **Operator** runs the Action Block items manually (secrets, migrations) — by family rule, never via the agent.
+11. **Operator** reads the announce block and runs whatever is left in the Action Block. If a routine infrastructure step is sitting in that block, the [clearance](operator-clearances.md) is what needs fixing — not the operator's evening.
 
 The **next session** picks up from the checkpoint and the changelog entry. Nothing is lost.
 
@@ -311,5 +329,5 @@ The transferable core is small: two roles, files as the only memory, reality-che
 
 ## Related
 
-- [Getting Started](getting-started.md) · [The Two Roles](two-roles.md) · [The Context Cascade](context-cascade.md) · [File Handling](file-handling.md) · [Checkpoints & Handoffs](checkpoints-handoffs.md) · [The Sanity Check](sanity-check.md) · [Bounded Deviation](bounded-deviation.md) · [Governance Sync](governance-sync.md) · [The Roadmap System](roadmap-system.md) · [The QA Gate](qa-gate.md) · [The Delta Log](delta-log.md) · [Model Orchestration](model-orchestration.md) · [Durable Memory](durable-memory.md) · [Architecture Graphs](architecture-graphs.md) · [Autonomous Loops](autonomous-loops.md) · [Infrastructure Limits](infrastructure-limits.md) · [Secrets and Rotation](secrets-and-rotation.md) · [Dependency Management](dependency-management.md) · [Cost Management](cost-management.md)
+- [Getting Started](getting-started.md) · [The Two Roles](two-roles.md) · [The Trust Gradient](trust-gradient.md) · [The Context Cascade](context-cascade.md) · [File Handling](file-handling.md) · [Checkpoints & Handoffs](checkpoints-handoffs.md) · [The Sanity Check](sanity-check.md) · [Bounded Deviation](bounded-deviation.md) · [Operator Clearances](operator-clearances.md) · [Governance Sync](governance-sync.md) · [The Roadmap System](roadmap-system.md) · [The QA Gate](qa-gate.md) · [The Delta Log](delta-log.md) · [Model Orchestration](model-orchestration.md) · [Durable Memory](durable-memory.md) · [Architecture Graphs](architecture-graphs.md) · [Reading the Outside World](external-sources.md) · [Autonomous Loops](autonomous-loops.md) · [Infrastructure Limits](infrastructure-limits.md) · [Secrets and Rotation](secrets-and-rotation.md) · [Dependency Management](dependency-management.md) · [Cost Management](cost-management.md)
 - Back to the [main playbook](../README.md)

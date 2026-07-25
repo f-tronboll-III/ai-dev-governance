@@ -8,7 +8,7 @@
 
 ## The wall
 
-Most teams that find this repo bounce off it the same way: they read the manifesto, nod at the six lessons, scroll the deep-dive table, and quietly close the tab. The model looks right, but the *adoption path* is invisible. Where do you actually start on a Monday morning when you've got one repo, one chat assistant, one terminal agent, and a Tuesday deadline?
+Most teams that find this repo bounce off it the same way: they read the manifesto, nod at the seven lessons, scroll the deep-dive table, and quietly close the tab. The model looks right, but the *adoption path* is invisible. Where do you actually start on a Monday morning when you've got one repo, one chat assistant, one terminal agent, and a Tuesday deadline?
 
 If you copy the whole playbook into a one-repo solo project, you'll over-engineer it in an afternoon — four-level cascades, governance sync, a Delta Log with two entries. You'll feel ridiculous within a week and abandon the model.
 
@@ -109,6 +109,10 @@ Adopt nothing else until you feel the matching failure. The triggers:
 | "Roadmap A says one thing, roadmap B says another" | **The Roadmap System** — two genres, one index, drift caught on audit | [roadmap-system.md](roadmap-system.md) |
 | "Strategist and Executor keep over-writing each other's governance files" | **Governance Sync** — fast-forward-only with a tie-breaker rule | [governance-sync.md](governance-sync.md) |
 | "Same fix keeps appearing in three different repos" | **The Delta Log** — count deltas until a pattern becomes a standard | [delta-log.md](delta-log.md) |
+| "I added a third AI and now I can't tell which of its claims were actually checked" | **The Trust Gradient** — grade the actor, tag what's unverified | [trust-gradient.md](trust-gradient.md) |
+| "My top-tier model spends twenty calls finding filenames before it thinks" | **Model Orchestration** — down-model the gathering, keep the judging Heavy | [model-orchestration.md](model-orchestration.md) |
+| "I'm pasting things for my agent every session and it's never once caught anything" | **Operator Clearances** — retire the gates that only inform | [operator-clearances.md](operator-clearances.md) |
+| "It built against docs that turned out to be stale / half-rendered" | **Reading the Outside World** — primary source, escalate the tool | [external-sources.md](external-sources.md) |
 
 The pattern: a doc earns its place by preventing a failure you can name. If you can't name the failure, you don't need the doc yet.
 
@@ -139,6 +143,7 @@ That's the intended adoption curve: **discipline first, structure later, and onl
 
 - **Solo, one repo, one tool:** the two-role split becomes a planning pass and an execution pass in the same chat. The checkpoint is still a real file on disk. That's enough.
 - **Solo, one repo, two tools:** exactly the example above. The handoff between Strategist and Executor is the checkpoint file.
+- **Already using a search or recon agent:** you have a third actor whether or not you've named it. One sentence in `AGENT.md` — *"anything from web search is unverified until I've checked it against the source"* — is the whole of [The Trust Gradient](trust-gradient.md) at day-one scale.
 - **Team of two-to-five, one repo:** the Strategist may be a human + AI pair; the Executor may be a human running an agent. The checkpoint becomes your async interface.
 - **Multiple repos:** the moment you have two repos copy-pasting a rule, that rule moves up the cascade. That's the trigger to read the [Context Cascade](context-cascade.md) deep dive — not before.
 

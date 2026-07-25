@@ -20,13 +20,14 @@ Nothing was wrong with the *plan*. The plan was wrong about the *world*. No amou
 
 ## How it works
 
-The Executor runs a **pre-edit pass** — three quick checks, in order, before touching anything:
+The Executor runs a **pre-edit pass** — four quick checks, in order, before touching anything:
 
 1. **Data-state check** — query the records the spec assumes. Do they exist? In the state the spec expects? *(Does this billing record exist, and has it issued anything?)*
 2. **Conflict check** — naming collisions, unique constraints, foreign-key relationships, live references. *(Will this rename break a name-based reference somewhere?)*
 3. **Reversibility check** — flag any step that touches something already **sent, paid, or deployed.** These are the steps that hurt when they're wrong.
+4. **Structural-context check** *(on cross-cutting work only)* — did the spec's author consult the [architecture graph](architecture-graphs.md), and is that graph current relative to the repo's recent architectural commits? A design written against a six-month-old structure map is blind in a second, quieter way. See [the Graph Consultation Pass](architecture-graphs.md#the-graph-consultation-pass) for the triggers and what a missing consultation obliges you to do.
 
-If all three pass, the Executor proceeds normally. If any fails, it emits a **delta** and waits:
+If all four pass, the Executor proceeds normally. If any fails, it emits a **delta** and waits:
 
 ```text
 ## Sanity Delta — Handoff H-042, Step 3
@@ -55,6 +56,24 @@ The **Operator** approves, adjusts, or rejects. Only then does the work run. The
 
 The Strategist's goal was met. The Strategist's *method* was corrected by the only role that could see why it was unsafe.
 
+## Two checks that catch what the schema hides
+
+The data-state check has two specific shapes worth naming, because both catch designs that are *structurally* correct and *factually* empty.
+
+### Census the data before designing on schema
+
+A design frequently rests on "the data's already there — the table exists, the column exists, the relationship exists." Schema presence is not data presence.
+
+The scar: a recon pass mapped a donor-attribution pipeline from schema and code and concluded the substrate was already built. Every table it named did exist. Then the census ran. Linking records: five rows across three entities, none with the funding reference the feature needed. Payments attributed to a donor: zero of seven. Records carrying the donor-facing copy the UI would render: zero of forty-two. The "quick win" depended on an asset that was 0% authored, and the immersive logged-in experience had an addressable audience of one.
+
+**The rule: one aggregate row-count pass per load-bearing table, up front, before scoping UI or estimating effort.** A `count(*)` and a `GROUP BY` take a minute and routinely reorder the entire plan — here, from "build the personalized portal" to "author the copy and ship the public surfaces first, and revisit the portal once its upstream data actually gets captured."
+
+### Verify public reachability empirically
+
+For any claim that a surface is publicly reachable — an endpoint, a feed, an image, a webhook target — **hit it and look at what comes back.** Confirm the response's content type is what you expect, not an HTML login page returning 200.
+
+The same engagement surfaced three silent production breaks with exactly this shape: routes that read as public in the source but weren't, thanks to handler auth-gate ordering in one case and a missing middleware bypass in another. Code-reading *implies* reachability; a request *proves* it, and costs one command.
+
 ## Anti-patterns
 
 | Anti-pattern | Why it bites | Do instead |
@@ -63,6 +82,9 @@ The Strategist's goal was met. The Strategist's *method* was corrected by the on
 | Silent deviation | The operator can't trust results they can't see reasoned | Always emit a delta; never "fix it quietly" |
 | Deviating to "improve" the spec | Scope creep dressed up as diligence | Deviate only to *reduce risk* (see [Bounded Deviation](bounded-deviation.md)) |
 | Running the check but skipping the log | The next session repeats the mistake | Record the delta in the changelog |
+| Reading the schema and calling the data-state check done | The table exists and holds five rows; the feature needs five thousand | Run an aggregate census on every load-bearing table |
+| Handing the reality check to the human as an Operator Action | Inverts the whole protocol — the Executor is the role that can see production | Reads belong to the Executor, in every environment |
+| "It's public, I read the route" | Auth-gate ordering and middleware bypasses make source misleading | Hit the live URL and check the content type |
 
 ## Adapt it to your setup
 
@@ -76,5 +98,8 @@ The Strategist's goal was met. The Strategist's *method* was corrected by the on
 - [The Delta Log](delta-log.md) — where deltas are tallied so recurring ones become standards
 - [The Two Roles](two-roles.md) — why the check belongs to the Executor, and where the Executor itself stops via [the Operator's hard line](two-roles.md#the-operators-hard-line-what-even-the-executor-doesnt-do)
 - [Durable Memory](durable-memory.md) — recalled memories are design claims; the sanity check validates them against live state before action
-- [Model Orchestration](model-orchestration.md) — the pre-edit Sanity Pass is non-down-modelable by rule; it stays on the heavy tier no matter the deadline
+- [Model Orchestration](model-orchestration.md) — the pre-edit Sanity Pass is non-down-modelable by rule; it stays on the heavy tier, at depth, no matter the deadline
+- [The Trust Gradient](trust-gradient.md) — every handoff gets this pass regardless of which actor authored it, and un-anchored "verified" claims are themselves delta-worthy
+- [Architecture Graphs](architecture-graphs.md#the-graph-consultation-pass) — the fourth leg: was the design grounded in a current structure map?
+- [Operator Clearances](operator-clearances.md) — what the Executor may act on once the pass is clean, and what still stops at the human
 - Back to the [main playbook](../README.md)

@@ -24,7 +24,20 @@ Give your chat assistant filesystem access and it edits production blind — no 
 
 The **Strategist** is your researcher and architect — strong at long-context reading, weighing tradeoffs, and writing detailed specs. It has four hard *nevers*: no editing source, no editing env/config, no database commands, no commits.
 
-The **Executor** lives in the repo. It reads the [`AGENT.md` cascade](context-cascade.md) at startup, runs the build, tests, and DB queries, and pushes. Because it's the only role that can change the world, it's also the role that runs the [Sanity Check](sanity-check.md) — the check belongs with the eyes that can actually see production.
+The **Executor** lives in the repo. It reads the [`AGENT.md` cascade](context-cascade.md) at startup, runs the build, tests, and DB queries, and pushes. Because it's the only role that can change the world, it's also the role that runs the [Sanity Check](sanity-check.md) — the check belongs with the eyes that can actually see production. It is also the role that *orchestrates* — dispatching cheaper subagents for mechanical work and keeping the judgment for itself (see [Model Orchestration](model-orchestration.md)).
+
+### When the cast grows past two
+
+Two roles is the spine, not the ceiling. Most setups that run this for a year end up with more producers than two — a recon agent that sweeps twenty repos faster than either role, a cheap bulk model for token-heavy grinding, a second chat model with read-only repo access whose criticism is good precisely because it *doesn't* share your primary model's blind spots.
+
+None of that breaks the split. The Strategist/Executor line is about **who commits**; the additions sit on a second axis entirely — **who is believed.**
+
+| | Strategist | Co-Strategist | Executor | Recon / offload tools | Operator |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| Commits? | No | No | **Yes** | No | Yes (rarely) |
+| Output believed? | Yes | Strategy yes, live-state claims verified | Yes | No — tagged until verified | — |
+
+The full grading rules — how a tag comes off, why a read-only critic gets provisional trust rather than full or none, and why the outside view has to come from a different model lineage — are in [The Trust Gradient](trust-gradient.md). The rest of this doc is the two-role spine and the human line around it, which every added actor inherits unchanged.
 
 ### The Operator: the implicit third role
 
@@ -87,7 +100,8 @@ Contrast the anti-pattern: mid-chat, the Strategist says *"this is easy, I'll ju
 - **Solo:** you're the Operator. The two AI roles can be two tabs or two terminals — a planning session and an execution session. The discipline is keeping them separate, not owning two products.
 - **One tool that can do both** (a terminal agent that also plans well): keep the *discipline* of the split anyway — a distinct planning pass that produces a written spec, then a distinct execution pass against it. The artifact is the point.
 - **Same-modality pairings.** Two chat-based AIs (a Perplexity Strategist and a ChatGPT review pass, say) or two terminal-based ones (Claude Code planning vs. Codex or Grok Build executing) both work fine. The split is about *who has commit access*, not about chat-vs-terminal. As long as the planning agent has no write access and the executing agent does, the discipline holds.
-- **Multiple Strategists.** Nothing in the model says you can only have one. The shop this playbook came from runs Perplexity and Claude side by side as paired strategists — different long-context strengths, different blind spots. The handoff to the single Executor is the convergence point.
+- **Multiple Strategists.** Nothing in the model says you can only have one. Different long-context strengths and different blind spots are worth having in the room at once; the handoff to the single Executor is the convergence point. The shop this playbook came from runs a primary Strategist in a chat app, a maverick co-strategist with read-only repo access whose job is to argue, and one Executor that ships.
+- **Adding a critic on purpose.** The most valuable second strategist is one you've explicitly instructed to be contrarian — a reviewer that agrees with your protocol is a mirror, not a review. Give it read access, weigh its arguments on their merits, and check its factual claims about live state, which will be stale. See [The Trust Gradient](trust-gradient.md).
 - **Choosing tools:** Strategist = strong research / long-context / architecture, no repo access needed. Executor = repo-native, runs your build, commits. See the [actor table](../README.md#-works-with-any-strategist--executor).
 
 ## The Operator's hard line: what even the Executor doesn't do
@@ -98,57 +112,69 @@ This is the counterpart to the role split itself. The Strategist's boundary is *
 
 The scar tissue is concrete. A CLI command to set environment variables on a hosting platform looks identical to a dashboard click — except the CLI silently creates separate per-environment entries while the dashboard offers an "All Environments" option that the CLI doesn't expose. A year of config drift starts there. A handoff that renamed a billing record looked safe — except the record had already-sent invoices attached, and the rename landed under the wrong customer name on already-paid receipts. Both were within the Executor's technical authorization. Both should have stopped at the line.
 
-### The four categories
+### Where the line actually falls
 
-1. **Irreversible infrastructure mutations.** Environment-variable writes, DNS changes, production database migrations, destructive schema operations. The cost of getting these wrong is hours of recovery or a security incident, and the agent can't see the second-order effects (which environments, which downstream consumers, which sessions). Hand the Operator a copy-paste block — exact commands or values, with the scope explicit (production / preview / development; which database; which table). The Operator pastes into the platform's own UI, where the platform's full set of options is visible.
+The line is drawn by **who undoes the damage**, not by how technical the action looks. That distinction matters, because the intuitive version of this rule — *"infrastructure is scary, so the human does infrastructure"* — is wrong in both directions, and gets more wrong over time.
 
-2. **Outward-facing sends.** Email blasts, social posts, transactional notifications to real recipients, anything that goes to an inbox or a public feed and can't be unsent. The Executor may *prepare* the send — render the template, queue the payload, dry-run against a sample list — and stop. The Operator approves the actual dispatch. The unit of approval is *the send,* not the code that performs it.
+Four categories genuinely stop at the human:
 
-3. **Overwrites of data the agent didn't create.** Renaming a record that already has dependents. Replacing a file whose history you can't reconstruct. Modifying rows that were entered by a human or a different system. The shape of the rule: *if you didn't write it, you don't overwrite it without an explicit hand-off.* The [Sanity Check](sanity-check.md) is what surfaces these collisions; this rule is what the Sanity Check escalates to.
+1. **Custody, identity, and money.** Registrar transfers, domain purchases, nameserver cutovers, account creation, billing and plan changes. Irreversible, out of band, and they change who *owns* the thing rather than what it does.
 
-4. **Actions against external services where you're a guest.** Vendor APIs that bill per call, deletion endpoints on third-party stores, anything that touches a system you don't own and can't roll back. Even when authenticated and authorized, the Executor stops and hands the call to the Operator for explicit go-ahead. The vendor's view of intent is binary; the Operator is the disambiguator.
+2. **Outward-facing sends.** Email blasts, social posts, transactional notifications to real recipients — anything that reaches an inbox or a public feed and can't be unsent. The Executor may *prepare* the send: render the template, queue the payload, dry-run against a sample. Then it stops. The unit of approval is *the send,* not the code that performs it.
+
+3. **Overwrites of data the agent didn't create.** Renaming a record that already has dependents. Replacing a file whose history you can't reconstruct. Modifying rows entered by a human or another system. *If you didn't write it, you don't overwrite it without an explicit hand-off.* The [Sanity Check](sanity-check.md) surfaces these collisions; this rule is what it escalates to.
+
+4. **Unbounded destructive operations, and guest actions on systems you don't own.** Mass deletes without a tight predicate, truncations, drops. Vendor APIs that bill per call, deletion endpoints on third-party stores. The vendor's view of intent is binary; the Operator is the disambiguator.
+
+Notice what is *not* on that list: routine environment-variable writes and production schema migrations. Both were on it originally, and both earned their way off — not by the rule loosening, but by the underlying capability problem getting solved. The env-var gate existed because a platform CLI silently created per-environment entries where the dashboard offered an "All Environments" option; the honest fix turned out to be *use the API call that sets every environment explicitly*, not *make the human paste forever*. The migration gate existed to keep the Operator aware of structural change; that awareness is preserved better by a committed, idempotent migration file plus a one-line announcement than by an 11pm copy-paste that leaves no artifact at all.
+
+That maturation — from **gate** to **clearance** — has its own deep dive: [Operator Clearances](operator-clearances.md). The short version is that a gate does two jobs, *preventing* and *informing*, and only the first is worth a human's evening.
 
 ### How the Executor signals it
 
-The handoff format already has the slot: an **Operator Action Block** at the end of every handoff, listing the steps the human will execute. When an Executor running a handoff encounters one of these categories *mid-execution* (not anticipated in the handoff's Action Block), it does the same thing the Sanity Check does for design conflicts — stops, writes a delta, and waits. The delta names the action, the category, and the specific risk; the Operator approves or rewrites.
+The handoff format already has the slot: an **Operator Action Block** at the end of every handoff, listing the steps the human will execute. When an Executor hits one of the four categories *mid-execution* — not anticipated in the Action Block — it does what the Sanity Check does for design conflicts: stops, writes a delta, and waits. The delta names the action, the category, and the specific risk; the Operator approves or rewrites.
+
+The inverse is a bug worth catching: **when a routine, already-cleared step appears in an Action Block, the clearance is broken, not the operator.** An Action Block padded with pastes teaches everyone to skim it, and the one genuinely irreversible item in there inherits that skim.
 
 The five-second test: *if this action goes wrong, who's the one undoing it?* If the answer is *the Operator, not the agent,* hand it off before you take it.
 
-### Anti-patterns
+### Line anti-patterns
 
 | Anti-pattern | Why it bites | Do instead |
 | :---- | :---- | :---- |
-| "It's just a quick env var, I'll script it" | Platform CLIs and dashboards expose different option sets; the agent's path silently diverges from the human's | Copy-paste block, Operator pastes into the dashboard |
-| Running a prod migration in-session because dev-environment migrations worked | Production has data; failure mode is data loss, not a retry | SQL goes into a separate block; Operator runs against prod, then confirms |
 | Sending an email blast on the Operator's behalf because the template is ready | The render is the easy part; the *unsend* doesn't exist | Render and stage; Operator hits send |
-| Renaming a record because the schema makes it look orphaned | "Looks orphaned" and *is* orphaned are different; the dependent rows may be in a table the agent didn't query | Sanity Check first; if dependents exist, hand to Operator |
-| Treating Executor authorization as universal because no individual mutation looks dangerous | The aggregate is the danger; one CLI call doesn't fragment config, but the *pattern* does over a year | Categorical rule, not per-call judgement |
+| Renaming a record because the schema makes it look orphaned | "Looks orphaned" and *is* orphaned are different; the dependents may live in a table the agent didn't query | Sanity Check first; if dependents exist, hand to the Operator |
+| Treating Executor authorization as universal because no individual mutation looks dangerous | The aggregate is the danger; one call doesn't fragment config, but the *pattern* does over a year | Categorical rule, not per-call judgement |
+| Keeping a gate because it's always been there | Nobody can say what it prevents, so nobody can say when it's safe to drop | Name the job — prevent or inform — and retire the informers into clearances |
+| Retiring a gate without an announce step | You removed the friction *and* the awareness; the human loses the plot on their own infrastructure | Clearance = safe capability path + durable artifact + one-line announcement |
 
 ### Why this isn't "just trust"
 
-It would be cleaner if the four categories were enforced mechanically — CI rules, platform IAM, a tool blocklist. Where you can do that, do. The reality is that most setups can't enforce all four at the platform layer; the discipline is what fills the gap. And once the categories are named, mechanical enforcement gets easier to add incrementally: a pre-commit hook that blocks `env add`, a CI step that requires a manual approval for migrations, a Resend integration scoped to drafts-only. Each one is a hardening of a line that already existed.
+It would be cleaner if the four categories were enforced mechanically — CI rules, platform IAM, a tool blocklist. Where you can do that, do. Most setups can't enforce all four at the platform layer, and discipline fills the gap. But once the categories are named, mechanical enforcement gets easier to add incrementally: a pre-commit hook, a CI step requiring manual approval, an email integration scoped to drafts-only. Each one hardens a line that already existed.
 
-The role split establishes *the Strategist doesn't write.* This section establishes *the Executor doesn't write past the Operator's accountability.* Together they're the same shape at two scales — the agent's authority is always bounded by who undoes the damage.
+The role split establishes *the Strategist doesn't write.* This section establishes *the Executor doesn't write past the Operator's accountability.* Same shape at two scales — the agent's authority is always bounded by who undoes the damage.
 
 ## Non-trust tools — instruments, not actors
 
-The Strategist / Executor / Operator triple is sometimes joined by a fourth category that *looks* like an actor but isn't: a third-party model wrapper, a recon agent, a divergent-brainstorm tool, a cheap-tier gatherer fanned out across a codebase. These produce text that reads exactly like a Strategist's analysis or an Executor's finding — and that resemblance is the trap. Naming the category is what stops the Executor (or, worse, the Strategist) from treating a wrapper's output as a deliverable rather than as raw material.
+The Strategist / Executor / Operator triple is usually joined by a category that *looks* like an actor but isn't: a recon agent, a bulk-compute wrapper, a divergent-brainstorm tool, a cheap-tier gatherer fanned out across a codebase. These produce text that reads exactly like a Strategist's analysis or an Executor's finding — and that resemblance is the trap. Naming the category is what stops the Executor (or, worse, the Strategist) from treating a wrapper's output as a deliverable rather than as raw material.
 
 A non-trust tool is bound by four clauses:
 
 - **Tools, not actors.** Output is unverified input to a verifying Strategist or Executor step — *never* a deliverable on its own.
-- **Never mutate production.** A non-trust tool reads, generates text, and returns a response. It does not commit, deploy, send, charge, or write to a database.
-- **Never author durable governance or executable artifacts.** It may *propose* a handoff, a config, or a draft; the Strategist or Executor authors the final version that anything downstream depends on.
-- **Ingest no PII.** Customer, donor, patient, or employee personal data never crosses the wrapper boundary. If a task requires reasoning over personal data, it stays on the in-trust actors.
+- **Never mutate production.** It reads, generates text, and returns a response. It does not commit, deploy, send, charge, or write to a database.
+- **Never author durable governance or executable artifacts.** It may *propose* a handoff, a config, or a draft; an authoring actor writes the final version that anything downstream depends on.
+- **Ingest no personal data.** Customer, donor, patient, or employee data never crosses the wrapper boundary. Reasoning over personal data stays with the in-trust actors.
 
-**Why this matters.** The temptation is to take a wrapper's fast, cheap, plausible-sounding output and act on it *because* it's fast and cheap. The shape of that failure is identical to acting on a stale memory entry without re-verifying it: the wrapper sounded right, and right-sounding quietly became done. The fix is a literal tag on every fact a non-trust tool surfaces — `[TOOL-NAME-UNVERIFIED]` or any marker you like — that doesn't come off until an in-trust actor confirms it. Until then it's a lead, not a fact.
+**Why this matters.** The temptation is to act on a wrapper's fast, cheap, plausible-sounding output *because* it's fast and cheap. The failure has the same shape as acting on a stale memory entry without re-checking it: the wrapper sounded right, and right-sounding quietly became done. The fix is a literal tag on every fact a non-trust tool surfaces — `[TOOL-NAME-UNVERIFIED]`, or any marker you like — that doesn't come off until an in-trust actor confirms it. Until then it's a lead, not a fact.
 
-**The genuine-outside-view bonus.** There's a second, quieter reason to keep a non-trust tool around. When your Strategist is itself an instance of one model family, its self-review can't catch its own family's blind spots — it shares them. A non-trust tool drawn from a *different* model family is the only path to genuine, non-lineage red-teaming: a second opinion that doesn't inherit the first one's assumptions. That's worth keeping in mind when you pick the wrapper — sameness of lineage is exactly what you don't want in the outside view.
+**The genuine-outside-view bonus.** There's a second, quieter reason to keep one around. When your Strategist is an instance of one model family, its self-review can't catch that family's blind spots — it shares them. A tool drawn from a *different* lineage is the only path to real red-teaming: a second opinion that doesn't inherit the first one's assumptions. Sameness of lineage is exactly what you don't want in the outside view.
 
-See [Model Orchestration](model-orchestration.md) for the broader pattern of which actor does what kind of work on which tier; a non-trust tool is a specific case of the "down-model the gathering" rule extended outside the in-trust model family.
+**Between "trusted" and "non-trust" there is a third grade** — a co-strategist with read-only repo access, whose *strategy* you believe and whose *claims about live state* you check, because it reads a snapshot and goes stale in hours. The full grading rules, the tag lifecycle, and the file-anchored receipt standard live in [The Trust Gradient](trust-gradient.md). [Model Orchestration](model-orchestration.md) covers the orthogonal question of which *tier* does which kind of work.
 
 ## Related
 
+- [The Trust Gradient](trust-gradient.md) — the cast beyond two roles, graded by whose output is believed
+- [Operator Clearances](operator-clearances.md) — how a human gate matures into an agent clearance without losing the awareness it provided
 - [Checkpoints & Handoffs](checkpoints-handoffs.md) — the artifact that crosses the line
 - [File Handling](file-handling.md) — the "tempted to just fix it quick" pattern and the escape valve
 - [The Sanity Check](sanity-check.md) — why the Executor, not the Strategist, validates against production

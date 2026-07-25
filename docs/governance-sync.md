@@ -65,6 +65,22 @@ When `--ff-only` fails, do not `git pull --no-ff`, do not `git rebase` blind, do
    - If they collide on the *same line* of the same file with different shapes, escalate to the Operator. Don't pick.
 4. **Rebase, push, and log.** After resolving, push, and write one line to the [Delta Log](delta-log.md): *"Sync conflict on `<file>` — Strategist won on shape change / Executor won on state — see commit `<sha>`."* This is how you spot a pattern (the same file conflicting repeatedly = a governance shape problem, not a sync problem).
 
+### The two-domain file: never blind-copy, always union-merge
+
+There's a class of file the conflict protocol above can't help with, because it isn't under version control on both sides. A **two-domain file** exists as a working copy your Executor reads at session start — sitting in a directory that is not a git repo — *and* as a mirror inside the governance repo, which is what the Strategist reads. Global and family-level context files land here constantly.
+
+Both copies get edited. The Executor edits the working copy because that's the file it actually loads. The Strategist edits the mirror because that's the file it can see. They drift, and neither `git` nor `--ff-only` will ever tell you, because only one of them is tracked.
+
+The tempting fix — `cp` one over the other during session-end sync — is the failure. **A blind copy silently destroys whatever the overwritten side gained since the last alignment.** It doesn't conflict, it doesn't warn, it just returns cleanly, and a rule someone added three weeks ago is gone.
+
+The discipline:
+
+- **Single-source files may be copied.** If exactly one location is canonical and the other is a pure read-only mirror — nothing ever edits the mirror — then `cp` is always safe. Say so explicitly in the sync script, next to the copy.
+- **Co-edited files are reconciled, never copied.** Keep every edit on either side additive and surgical, then align the pair by **union-merge**: take the superset side as the base, port the other side's unique content in with targeted edits, and write both copies byte-identical. Then note the alignment date.
+- **Say which kind each file is, in the sync script itself.** A one-line comment per path. The next session — or the next agent — cannot infer it, and will reach for `cp`.
+
+The deeper fix, when it's worth the migration: move the canonical copy of every two-domain file into a git repo and have both roles read it from there. That eliminates the second domain, and with it the reconciliation chore entirely. Until then, the union-merge is what keeps both sides whole.
+
 ### When fast-forward is impossible by design
 
 A few legitimate cases produce a divergence that isn't actually a conflict:
@@ -104,6 +120,8 @@ Without the protocol, this is the session that quietly drops the changelog entry
 | Editing governance from the Executor's project repo | Splits the source of truth | Governance changes go *through* the governance repo, with the Strategist's hand |
 | Reusing one git identity for both roles | The audit log can't tell who did what | Tag the author by role |
 | Letting unpushed commits accumulate | Each one is a future merge conflict | Push at session end, every session, no exceptions |
+| `cp`-ing a co-edited file over its mirror during sync | Only one side is tracked, so the loss is silent — no conflict, no warning, just missing rules | Union-merge co-edited files; reserve `cp` for genuinely single-source ones |
+| Leaving it ambiguous which files are single-source | The next session guesses, and guesses `cp` | One comment per path in the sync script naming its kind |
 
 ## Adapt it to your setup
 

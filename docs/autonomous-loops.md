@@ -48,6 +48,8 @@ Most loops have logs. Logs are not observability. Observability is **a signal so
 
 The three failure modes this catches: silent stoppage (no heartbeat update), silent degradation (heartbeat updates but failure rate climbs), and the harder one — **silent success-with-wrong-side-effect** (the loop runs, the heartbeat updates, but the work it did was wrong). Rule 5 below addresses that one.
 
+A loop that *polls outside sources* has a fourth failure mode a heartbeat cannot see: every fetch returns cleanly, and every fetch returns nothing useful, because the requests are being firewall-blocked or the pages render client-side. The monitor reports healthy and watches nothing. Watchers therefore carry three extra rules of their own — a browser-like user agent, per-source rather than per-batch failure handling, and verifying that what was extracted exists in the bytes that were fetched. See [Reading the Outside World](external-sources.md#scheduled-watchers).
+
 The principle: *if there is no signal that fires when the loop is unhealthy, the loop is invisible.* Invisible loops always end up doing the wrong thing for longer than you'd expect.
 
 ### Rule 3 — Named owner, shared surface
@@ -197,7 +199,7 @@ The disciplined path:
 3. **Heartbeats.** Each successful post writes `last_success_at` to a `loop_heartbeats` table. A second cron — the *staleness checker* — runs every 2 hours and emits an alert if `last_success_at` is older than 26 hours. Failed runs write `last_failure_at` plus the error message.
 4. **Health surface.** The loop is added to the shared `governance/health-surface.md` table: name, owner repo, schedule, kill switch, last-success-at link, expected interval.
 5. **Dry-run.** Deployed with `FACEBOOK_POSTER_DRY_RUN=true` for two full cycles. Logs reviewed; the would-be posts looked right. Dry-run flipped off, first live post watched manually.
-6. **Failure envelope.** Week three, the token expires. The post fails. `last_failure_at` updates with `OAuthException: token expired`. Two hours later, the staleness checker fires the alert. Operator hits the kill switch from a phone, then opens a CC handoff to rotate the token. Total dark time: zero — because the next-scheduled post never happened in a broken state.
+6. **Failure envelope.** Week three, the token expires. The post fails. `last_failure_at` updates with `OAuthException: token expired`. Two hours later, the staleness checker fires the alert. Operator hits the kill switch from a phone, then opens a handoff for the Executor to rotate the token. Total dark time: zero — because the next-scheduled post never happened in a broken state.
 
 The discipline traded a 30-minute up-front setup for a 9-day silent outage averted. That ratio is typical.
 
@@ -213,6 +215,7 @@ The discipline traded a 30-minute up-front setup for a 9-day silent outage avert
 | Treat loops as infrastructure, not as code that ships | Loops drift out of the governance model the rest of your code follows | Loops get tiers, Sanity Checks, QA gates, and checkpoints — same as everything else |
 | Read the kill-switch flag once at boot | A long-running process never sees the change | Read on every invocation; for long-running processes, on every iteration of the main loop |
 | Health surface that no one looks at | Same as no health surface | Pair the surface with a fixed cadence (Monday, every release) |
+| Ship a source-polling watcher tested only against fixtures | Fixtures never firewall-block, never move, never change shape — so the first real 403 arrives in silence | First run goes against the real sources, with a browser-like user agent, and you read the results |
 
 ## Adapt it to your setup
 
@@ -223,6 +226,7 @@ The discipline traded a 30-minute up-front setup for a 9-day silent outage avert
 
 ## Related
 
+- [Reading the Outside World](external-sources.md) — the extra discipline for any loop that polls sources you don't control
 - [Cost Management](cost-management.md) — the [metered-service trap](cost-management.md#the-metered-service-trap) is exactly the failure mode the watchdog pattern is built to catch
 - [Infrastructure Limits](infrastructure-limits.md) — the file the watchdog's classifications and thresholds should be tuned against; gotchas the watchdog uncovers belong in this file
 - [The QA Gate](qa-gate.md) — the post-execution checklist that applies to loop deploys just as it does to feature deploys

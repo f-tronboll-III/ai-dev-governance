@@ -1,8 +1,8 @@
 # Secrets and Rotation
 
-> Two AIs and a human share a codebase. **None of them should ever see a production secret in plaintext.** The discipline below is what keeps that true — not just on day one, when everyone is careful, but two years in, when the operator has rotated 40 keys and onboarded three new repos.
+> A cast of AIs and a human share a codebase. **No secret value should ever be displayed — in chat, in a handoff, in a log, or in a commit.** The discipline below is what keeps that true not just on day one, when everyone is careful, but two years in, when the operator has rotated 40 keys and onboarded three new repos.
 
-**Part of:** [AI Dev Governance](../README.md) · **Prerequisite reading:** [The Two Roles](two-roles.md), [The QA Gate](qa-gate.md) · **See also:** [File Handling](file-handling.md)
+**Part of:** [AI Dev Governance](../README.md) · **Prerequisite reading:** [The Two Roles](two-roles.md), [The QA Gate](qa-gate.md) · **See also:** [Operator Clearances](operator-clearances.md), [File Handling](file-handling.md)
 
 ---
 
@@ -20,9 +20,9 @@ Each one is recoverable individually. The compound problem is that AI workflows 
 
 ## The rule
 
-1. **Secret values never appear in chat, handoffs, checkpoints, or any file in any repo.** Names appear; values do not.
-2. **The operator is the only role that pastes a secret into anything.** Not the Strategist, not the Executor.
-3. **Secrets live in exactly one place per environment** — the hosting console for production, a single local file (`.env.local` or equivalent) for development — and are referenced everywhere else by name.
+1. **Secret values never appear in chat, handoffs, checkpoints, logs, or any file in any repo.** Names appear; values do not.
+2. **Separate *using* a credential from *displaying* one.** The Strategist never touches values at all. The Executor may *use* a credential it can never *show* — sourcing it by path from an operator-owned store to make an API call, and never printing, echoing, logging, or committing it.
+3. **Secrets live in exactly one place per environment** — the hosting console for production, a single ignored local file for development — and are referenced everywhere else by name.
 4. **A rotation playbook exists for every secret, lives in the repo's `AGENT.md`, and is exercised at least once before the secret is needed in anger.**
 5. **A leak protocol exists for every secret category** — what to rotate, who to notify, how to confirm the leak window is closed — and is rehearsed on adoption, not on the incident.
 
@@ -38,15 +38,31 @@ That's it. The Executor reads the name, the operator pastes the value into the h
 
 The same rule applies to `AGENT.md` files, checkpoints, the Delta Log, and every other artifact the playbook creates. If you find yourself about to type a value, stop and re-route through the operator.
 
-### Rule 2 — The operator's monopoly on paste
+### Rule 2 — Use is not display
 
-Only the operator pastes secret values. In practice this means three workflows:
+The instinct is to say *"only the human ever handles a secret."* That's the right instinct pointed at the wrong noun. What actually needs protecting is **display** — a value rendered into a transcript, a log, a document, or a commit, where it becomes durable and copyable. **Use** — a credential read from a store and handed to an API client — leaves no residue at all.
 
-- **Local development.** The operator maintains `.env.local` (or equivalent) by hand, by copying values out of a password manager into a file the AI never reads. The Executor reads the env at runtime; it does not edit the file.
-- **Production / hosting console.** The operator sets values in the hosting provider's UI (Vercel, Cloudflare, Render, etc.). The AI cannot reach these consoles directly — and if you've wired an AI integration that could, treat that integration itself as a security-sensitive surface and audit it under the same discipline.
-- **Shared services (databases, third-party APIs).** Same pattern. The operator manages credentials inside the third-party's UI; the AI references them by env-var name.
+Collapsing the two produces a rule that's simultaneously too strict and too weak. Too strict, because the human ends up pasting values into consoles for years on work an agent could do more reliably. Too weak, because "the human did it" says nothing about whether the value ended up in the session transcript on the way there.
 
-This monopoly is the single most load-bearing rule in the file. Every other rule is enforceable mechanically; this one is enforceable only by discipline, and the discipline is easy to drop in a hurry. The five-second test: *if I'm about to type a value, am I the operator or an AI?* If AI, stop.
+So the line runs by role and by verb:
+
+- **The Strategist touches values at all: never.** It designs from outside the repo and has no legitimate reason to hold a credential. Its handoffs name variables and point at where the value lives.
+- **The Executor may use, never show.** It sources a credential by path from an operator-owned store, uses it, and never prints, echoes, logs, interpolates into a message, or commits it. Not into a summary, not into a debug line, not "redacted except the last four" unless the last four is genuinely all that's needed.
+- **The Operator owns the store**, and remains the only role that *originates* a value — generating it at the vendor, placing it in the store, and rotating it.
+- **Non-trust surfaces get nothing.** A recon agent or bulk-compute wrapper has no credential access of any kind ([Trust Gradient](trust-gradient.md)).
+
+The five-second test changes shape accordingly: *is this value about to become durable somewhere?* If it lands in a transcript, a log line, a file, or a commit — stop, regardless of who's typing.
+
+### The credential store
+
+Once the Executor may *use* credentials, it needs somewhere to get them, and "ask the operator each time" is the bottleneck this whole distinction exists to remove. The shape that works:
+
+- **One operator-owned file**, gitignored, outside any repo's tracked tree, holding the full-permission credentials for every provider across every project. It is the store; it is never the deployment target.
+- **Referenced by path, never by content.** A handoff or a context file may say *"source `PROVIDER_API_TOKEN` from the credential store"* and name the store's path. It never quotes a value, and neither does any completion summary.
+- **It is not production secrets.** Production values live in the hosting console; the store holds what the *agent* needs to operate the fleet — and those are usually the more powerful ones, which is exactly why they're gitignored and never echoed.
+- **Enumerating it is a normal read; printing it is a leak.** An agent may check that a key exists, and may redact when reporting what it found. The moment a value is rendered, treat it as the incident it is.
+
+This is the [clearance](operator-clearances.md) pattern applied to credentials: the human keeps the part only a human can hold — origination, custody, rotation — and the mechanical part moves to the agent, with the value never becoming visible on the way.
 
 ### Rule 3 — One source of truth per environment
 
@@ -54,9 +70,10 @@ Per environment, the values live in exactly one place:
 
 | Environment | Source of truth | Read by |
 | :---- | :---- | :---- |
-| Production / staging | Hosting provider's env-var UI | The deployed app at runtime |
+| Production / staging | Hosting provider's env-var store, written via its API or UI | The deployed app at runtime |
 | Local development | A single ignored file (`.env.local`) at the repo root | The local dev server |
 | Shared / cross-repo | A secrets manager (1Password, AWS Secrets Manager, Doppler, Infisical) | The operator, manually copying out |
+| Agent operations | The operator-owned credential store, gitignored, outside every repo | The Executor, by path, without ever displaying a value |
 
 Anything else — a `.env.example` checked into the repo, a `config.local.ts`, an init script — contains *names only* (and optionally placeholder values like `STRIPE_SECRET_KEY=sk_test_REPLACE_ME`). The repo never contains a real value, in any branch, in any commit, ever.
 
@@ -138,6 +155,10 @@ The discipline traded a 30-minute setup for a leak resolution that took 15 minut
 | Log `process.env` for debugging | Production logs are searchable by anyone with access | Log only the values you need, by name, redacted by length |
 | Revoke "once we understand the scope" | Scope-reasoning takes hours; revocation takes seconds | Revoke first, then investigate |
 | One shared API key used by every repo | A single leak forces a rotation that breaks every repo simultaneously | One key per repo or per service boundary; rotate independently |
+| Echoing a credential to prove it was found | The proof is the leak; the transcript is durable | Report presence and location, never the value |
+| Routing a credential through the human because "an AI shouldn't touch secrets" | Conflates use with display, and often puts the value in the transcript en route | The Executor uses without showing; the Operator originates and rotates |
+| Giving a recon or bulk-compute surface a credential "just for this one call" | Non-trust surfaces are outside the boundary by definition; there is no small version of this | Credentialed work is an authoring actor's, always |
+| Writing a credential into `.git/config` or a shell history to avoid re-typing it | Both are durable, both get read, neither is where you'd look after a leak | Use it ephemerally, per invocation, from the store |
 
 ## Adapt it to your setup
 
@@ -148,7 +169,9 @@ The discipline traded a 30-minute setup for a leak resolution that took 15 minut
 
 ## Related
 
-- [The Two Roles](two-roles.md) — defines the operator's monopoly on pasting values
+- [The Two Roles](two-roles.md) — where the Operator's accountability line falls, and why the Strategist holds no values at all
+- [Operator Clearances](operator-clearances.md) — the general form of "the human keeps origination; the agent gets the mechanics"
+- [The Trust Gradient](trust-gradient.md) — why non-trust surfaces get no credential access under any circumstances
 - [File Handling](file-handling.md) — the same "verify before trusting" discipline applied to writes
 - [The QA Gate](qa-gate.md) — where the post-deploy secret scan lives
 - [Autonomous Loops](autonomous-loops.md) — loops are a high-leak surface because they read secrets unattended

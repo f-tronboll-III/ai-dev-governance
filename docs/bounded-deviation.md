@@ -32,6 +32,16 @@ For each step where production disagrees with the spec, the Executor runs the th
 
 **Default when uncertain: pause.** A paused task that leaves a clear delta costs minutes. A confident deviation that was actually scope creep costs trust — and trust is the only reason you let the agent run unattended at all.
 
+### Spec ambiguity counts as deviation
+
+The gates are usually applied to the obvious case: the spec says X, production says Y. There's a quieter case that has to run through the same three gates — **the spec didn't say.**
+
+A handoff leaves a detail unresolved. A column type isn't specified. A naming convention isn't stated. An error path isn't described. The Executor makes a judgment call and moves on, because it *is* a judgment call and it *was* reasonable. Nothing is logged, because nothing "deviated" — the spec had no position to deviate from.
+
+That's the erosion. The protocol's entire muscle is *treat every handoff as a design and verify it against reality*; silently resolving what the design left open weakens that exactly as much as silently resolving a production conflict does. The Strategist never learns its specs have a recurring blind spot, and the next session inherits a decision nobody can find the reasoning for.
+
+**The rule: when you fill a gap in the spec rather than asking, log it as a deviation, under the same three gates.** Evidence-anchored (why this resolution and not another), minimal and risk-reducing, no scope expansion. It's usually one line in the completion summary — and that line is what turns "the specs keep omitting error paths" from an unspoken irritation into a countable pattern in the [Delta Log](delta-log.md).
+
 ## Worked example
 
 **Allowed.** Continuing the billing-rename case from the [Sanity Check](sanity-check.md): the spec said *mutate the record*; the Executor proposes *add a display alias* instead.
@@ -57,6 +67,7 @@ Gate 2 fails, so the Executor does **not** touch it. Instead it notes "invoice c
 | Deviating on taste | No reproducible evidence; fails Gate 1 | Follow the spec or emit a delta |
 | Expanding to fix unrelated bugs | Turns one reviewable change into many | File the bug; keep the task atomic |
 | Deviating silently | The operator can't trust unseen reasoning | Always log the deviation, even when authorized |
+| Filling a gap the spec left open without logging it | Nothing "deviated," so nothing gets counted — and the Strategist's blind spot never surfaces | Ambiguity resolution runs the same three gates and gets the same one-line log |
 | Pausing on everything | Defeats the point of an autonomous Executor | Trust the three gates; proceed when all pass |
 
 ## Adapt it to your setup

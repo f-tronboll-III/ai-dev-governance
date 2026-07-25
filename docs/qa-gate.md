@@ -24,9 +24,10 @@ The Executor runs these in order; any failure blocks "done":
 4. **Hygiene** — remove stray debug logging and leftover TODOs.
 5. **Acceptance criteria** — verify each one PASS/FAIL against the handoff.
 6. **One-line QA report** — what was checked, what passed.
-7. **Operator Action Block** — list any human-only manual steps.
-8. **Push to main; confirm the host build is green.**
-9. If many files changed, **regenerate the architecture graph** for the shared registry.
+7. **Announce block** — one line per production-structural change actually applied this session: schema columns added, environment variables set, data fixes run. This is what replaces the approval gates the agent no longer needs; see [Operator Clearances](operator-clearances.md).
+8. **Operator Action Block** — list any human-only manual steps. If a routine, cleared step is sitting in here, that's a bug in the clearance, not a step for the human.
+9. **Push to main; confirm the host build is green.**
+10. If many files changed, **regenerate the architecture graph** for the shared registry.
 
 ## Worked example
 
@@ -43,16 +44,20 @@ Without step 2, that change ships silently, and someone spends next Tuesday debu
 | Skipping the diff audit | Unintended changes ship silently | Always audit the diff |
 | "Looks good to me" | Vibes aren't a gate | Run the fixed checklist, in order |
 | Secrets in code "temporarily" | Temporary lives forever in git history | Block on the security scan |
+| Applying a production schema change and not announcing it | The human loses the plot on their own infrastructure, quietly | One line per structural change, every session |
+| Padding the Action Block with routine pastes | Teaches the operator to skim the one item that actually matters | Routine → clearance; the block holds only what can't graduate |
 
 ## Adapt it to your setup
 
 - **Solo:** have the Executor print the checklist results so you can eyeball them — you're the gate.
 - **Lower tiers:** Tier 0/1 get a lighter gate (type-check + diff audit); reserve the full list for Tier 2+.
 - **CI:** automate steps 1–3 in a pipeline so the gate runs even when you forget to ask for it.
+- **No clearances granted yet:** step 7 collapses into step 8 — everything structural is still a human step. Adopt the announce block anyway; it's how you'll later notice which gates never catch anything.
 
 ## Related
 
 - [The Two Roles](two-roles.md) — the Executor owns the gate
+- [Operator Clearances](operator-clearances.md) — what belongs in the announce block versus the Action Block
 - [The Sanity Check](sanity-check.md) — the pre-edit bookend to this post-execution gate
 - [Post-execution QA — full overview](architecture.md#layered-protocol--post-execution-qa-tier-2)
 - Back to the [main playbook](../README.md)

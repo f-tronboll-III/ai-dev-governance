@@ -20,8 +20,9 @@ The fix isn't a smarter model or a bigger context window. It's a division of lab
 
 ## The rule
 
-Five rules, one principle. The principle: **optimize for waste elimination, not spend minimization.** Cost isn't the enemy — the heavy tier is worth every token when the task is judgment. Unjustified token burn on mechanical work, and quality drift from a cluttered context, are the enemy.
+Six rules, one principle. The principle: **optimize for waste elimination, not spend minimization.** Cost isn't the enemy — the heavy tier is worth every token when the task is judgment. Unjustified token burn on mechanical work, and quality drift from a cluttered context, are the enemy.
 
+0. **Tier and effort are two axes, chosen by two different tests.** *Risk* picks the tier (who thinks); *difficulty* picks the effort (how hard they think). Rules 1–5 govern the tier axis only — see [Two axes, not one](#two-axes-not-one) before applying any of them to reasoning depth.
 1. **Heavy is the default; you justify routing DOWN, never staying Heavy.** The burden of proof runs one direction only. The absence of a reason to down-model *is* the instruction to stay on the heavy tier. This makes the safe choice the lazy choice and removes any need for a "keep this on the good model" flag.
 2. **Down-model the gathering; keep the judging on Heavy.** Search, grep, read, enumerate, bulk-extract, reformat — that's the cheap tier's job. Decide, prioritize, weigh tradeoffs, synthesize — that stays on the heavy tier. (Sometimes the gathering belongs to a *different vendor* entirely — see [Non-trust tools](two-roles.md#non-trust-tools--instruments-not-actors).)
 3. **The Sanity Pass is non-down-modelable, full stop.** There is no deadline, token budget, or time pressure that licenses running the [pre-edit Sanity Check](sanity-check.md), a delta judgment, or a [bounded-deviation](bounded-deviation.md) decision on a cheaper tier. It is judgment on production reality; it stays Heavy by construction of Rule 1.
@@ -29,6 +30,28 @@ Five rules, one principle. The principle: **optimize for waste elimination, not 
 5. **Fan out for breadth without cross-dependency; never for work that needs shared context between agents.** Parallel cheap-tier agents are for independent targets each can answer blind. The moment two agents need to see each other's findings, it's one agent's job — or a workflow with a barrier — not a fan-out.
 
 ## How it works
+
+### Two axes, not one
+
+Newer models expose a second dial alongside model choice: a **reasoning-effort** setting, typically something like `low → medium → high → xhigh → max`, that controls how much thinking the model does per turn. It is orthogonal to the tier ladder, and conflating the two is the newest way to burn tokens while feeling disciplined.
+
+| Axis | The question it answers | Chosen by |
+| :---- | :---- | :---- |
+| **Tier** | *Who* does the thinking (Heavy / Mid / Light) | **Risk** |
+| **Effort** | *How hard* they think | **Difficulty** |
+
+The two tests are genuinely independent, and the combinations are all real:
+
+- A one-line fix to a production database is **high risk, low difficulty** → Heavy tier, moderate effort.
+- A gnarly but fully reversible local refactor is **low risk, high difficulty** → high effort is justified, and it can run down-tier.
+- A grep sweep is low on both → Light tier, low effort.
+- Cross-family architecture is high on both → Heavy tier, deep effort.
+
+**Do not transplant "Heavy is the default" onto the effort axis.** Rule 1's burden-of-proof is about *who* thinks, and reading it as "always maximum effort" produces exactly the unjustified token burn this discipline exists to eliminate. The default effort for routine work is your session default; you escalate on *demonstrated* difficulty — a cross-repo migration design, contradictory production state, a problem that already defeated one pass — not pre-emptively on anything that sounds scary.
+
+**One floor is binding: judgment never runs shallow.** The [pre-edit Sanity Check](sanity-check.md), a delta judgment, and a [bounded-deviation](bounded-deviation.md) decision have an effort floor as well as a tier floor. Staying on the heavy model while thinking shallowly is not staying Heavy — it defeats Rule 3 through the back door. Every stay-Heavy trigger in the list below carries the effort floor with it.
+
+**Watch for settings that aren't rungs.** Harnesses sometimes list orchestration modes (a "spawn many subagents by default" toggle, say) inside the same menu as effort levels. Those are a different axis again — fan-out breadth, not reasoning depth — and they belong to the human to enable, not the agent to self-select. If a setting can multiply your agent count by ten, it is not a notch above "maximum effort."
 
 ### When to route DOWN (and how far)
 
@@ -80,7 +103,24 @@ Don't fan out work that needs shared context between agents, and don't let any f
 
 - **Subagents:** pass an explicit model tier on the delegation. Default mechanical fan-out to the cheap tier unless a stay-Heavy rule trips.
 - **Workflows:** assign a tier per stage — finder and reader stages cheap, synthesis and verify stages Heavy. Record the per-stage tier where the workflow's shape is written down, so the routing is auditable.
-- **Disclosure:** when a result that fed a decision came from a down-modeled agent, note the provenance. The human reading the conclusion should know which tier gathered the evidence under it.
+- **Effort, where the dial exists:** set it per stage alongside the tier. The canonical fan-out shape is *mechanical finder stages at Light tier and low effort; the synthesis and verify stage at Heavy tier and deep effort.* On the main loop, treat effort as a dial you raise for a hard stretch and lower afterward — not a setting you configure once.
+- **Disclosure:** when a result that fed a decision came from a down-modeled *or* low-effort agent, note the provenance. The human reading the conclusion should know which tier gathered the evidence under it, and how deeply.
+
+### Which surface, not just which tier
+
+Once you have more than one vendor in the room, routing has a second dimension: not *how expensive a model* but *which surface entirely*. The mapping that tends to fall out:
+
+| Work shape | Surface | Why |
+| :---- | :---- | :---- |
+| Authoring any durable artifact — handoff, protocol amendment, context file, migration, commit | **An authoring actor**, always | Authority isn't delegable ([Trust Gradient](trust-gradient.md)) |
+| Live-web sweeps, market and landscape recon, "give me twenty of X", red-team hypotheses, first-draft prose | **Recon agent** | Breadth and speed; its edge is real-time reach, not judgment |
+| Long corpora, batch evaluation, distilling fetched pages, public-data triage | **Bulk-compute offload model** | Latency-tolerant volume; also your only non-lineage outside view |
+| Anything touching personal data | **Authoring actors only** | The non-trust boundary is the data boundary, no exceptions |
+| Anything acted on without a downstream verifier | **Heavy tier, in-trust** | The stay-Heavy rules below |
+
+Two guardrails keep this from becoming a free-for-all. **Don't over-route:** if the verifying actor can answer cleanly in one or two of its own searches, a round trip through a recon agent costs more attention than it saves. Its keep is earned on breadth (twenty vendors, ten angles, a full-web sweep) and on speed of first-draft prose — not on questions the verifier already half-knows. And **cheap tokens never buy trust:** if a surface is effectively free, use it aggressively for gathering and change nothing about its grade.
+
+An **ecosystem-level ban** — "we don't use vendor X at all" — is a legitimate governance decision, but it belongs in a written decision record with a stated unban path, not in an agent's in-session judgment. Otherwise it re-litigates itself every time someone new joins the orchestration plan.
 
 ## Worked example
 
@@ -115,6 +155,9 @@ The anti-pattern version: one heavy agent reads both repos end to end, arrives a
 | Building a template library of gather prompts | Every variant is a drift surface; they fall out of sync and encode subtly different rules | One contract, parameterize the task only |
 | Fanning out work with cross-dependency | Agents blind to each other produce incoherent partial answers that don't compose | One agent, or a workflow with a barrier |
 | Down-modeling the Sanity Pass under deadline pressure | The pass is judgment on production reality; a cheap-tier miss here is a production incident | Sanity Pass is Heavy by construction — Rule 3 |
+| Running maximum effort on everything because "Heavy is the default" | Conflates the two axes; produces the exact token burn the discipline exists to kill | Risk picks the tier, difficulty picks the effort |
+| Staying on the heavy model at shallow effort for a Sanity Pass | Defeats Rule 3 through the back door — the tier was never the point, the thinking was | Stay-Heavy triggers carry the effort floor too |
+| An agent self-enabling a fan-out mode that multiplies its own agent count | Orchestration breadth is a spend decision the human owns, not a depth setting | Human opts in; the agent never selects it for itself |
 | A project file that *weakens* the floor instead of tightening it | A lower-scope file that permits a down-model the floor forbids quietly reopens the failure mode everywhere it applies | Lower scopes may only add *stricter* rules, never loosen |
 
 ## Adapt it to your setup
@@ -127,7 +170,9 @@ The smallest version that still works is one sentence in one file: *down-model t
 
 ## Related
 
+- [The Trust Gradient](trust-gradient.md) — the orthogonal question: which tier does the work vs. whose output is believed
 - [Non-trust tools](two-roles.md#non-trust-tools--instruments-not-actors) — extending "down-model the gathering" outside your own model family; the gather contract and the unverified-input posture apply unchanged
+- [Reading the Outside World](external-sources.md) — the fetch-then-distill ladder, which is this rule applied to a retrieved corpus
 - [The Sanity Check](sanity-check.md) — the pre-edit pass that is non-down-modelable by rule
 - [Bounded Deviation](bounded-deviation.md) — judgment about whether to deviate is never delegated to a cheaper tier
 - [Cost Management](cost-management.md) — the right framing is waste elimination, not spend minimization; model orchestration is the lever
