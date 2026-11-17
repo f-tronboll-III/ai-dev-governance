@@ -90,7 +90,7 @@ The mirror image — and it's worth naming these explicitly, because they're the
 
 Not every gate is permanent-or-retired. A third shape is a **freeze**: a scoped, temporary gate with a named sunset.
 
-*"While these three domains are mid-transfer, no new DNS records on them — except the ones the transfer playbook lists as preserved. Exception path: the Operator and Strategist ratify it in the decisions log. Sunsets when the transfer verifies."*
+> *"While these three domains are mid-transfer, no new DNS records on them — except the ones the transfer playbook lists as preserved. Exception path: the Operator and Strategist ratify it in the decisions log. Sunsets when the transfer verifies."*
 
 That's a well-formed freeze: a **scope** (three named domains), a **prohibition**, an **exception path**, and a **sunset condition**. A freeze without a sunset silently becomes a permanent gate that nobody remembers the reason for — and those are the hardest kind to retire, because the justification is gone and only the ritual remains.
 
@@ -127,6 +127,8 @@ Contrast the item that stayed: the registrar transfer. It's still in the Action 
 | A freeze with no sunset condition | Becomes a permanent gate whose justification has evaporated | Every freeze names its scope, its exception path, and what ends it |
 | Handing the human a *read* as an Operator Action | Inverts the Sanity Check — the Executor is the role that can see production | Reads are always the Executor's, in every environment |
 | Echoing a credential value to justify a clearance | The clearance was for *using* the credential, never for displaying it | Source by path; never print, log, or commit a value |
+| Framing a settled fact as a question to the Operator ("which team should this go on?") | Re-litigates a constant every session, and teaches the Operator that Action Blocks are noise | Write the constant into the clearance once; the agent never asks it again |
+| Reading a 404 as "not permitted" and handing it to the human | A 404 where you expected a 403 usually means the thing doesn't exist; the "permission problem" was an invented Operator Action | Check that the resource exists before escalating; a stale rule that sends sessions to the Operator is a clearance bug |
 
 ## Adapt it to your setup
 

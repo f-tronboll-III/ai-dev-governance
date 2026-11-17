@@ -104,6 +104,19 @@ The index is one line per entry — enough for the AI to know whether to open th
 
 Index sections are organized by topic, not by date or type — *"Hosting Platform Gotchas," "Email Infrastructure," "Operator Preferences"* — because the AI's retrieval question is *"do I have memories relevant to this topic?"* not *"what was added in March?"*
 
+### The resident file has an admission rule
+
+Past a few hundred memories, even a one-line-per-entry index stops fitting — and a flat index that outgrows its load budget fails the worst possible way: **it truncates by position.** Whatever is at the end is silently not loaded, and nothing says so.
+
+The shape that holds is two layers:
+
+- **One small resident file**, loaded every session, holding *only* the hazards that cause a confident wrong action with nothing erroring — the things an agent would get wrong without knowing to look anything up. Group it by **failure class**, not topic: *writes that hit production, mail that reports success and arrives nowhere, credentials that answer confidently for the wrong account, work that's "shipped" but running nowhere, destructive-by-accident.* Each entry is one line naming the silent symptom, plus a pointer to the full file.
+- **Topic indexes**, one per area, each opening with *"Read this when…"*, loaded when the work matches. The resident file ends with a short table mapping each index to its trigger.
+
+The admission rule is written at the top of the resident file itself: **a new memory goes in a topic index by default.** The resident file grows only for a genuinely new class of silent failure. Anything an error would reveal on its own doesn't earn a resident slot — the error is the reminder.
+
+One more failure the two layers introduce: **give every index exactly one live home.** One shop found three stale copies of its index tree in a mirror, written there by a sync script that routed files by basename. Copies drift, and whichever one a session happens to load wins. The sync script now refuses to write an index anywhere but its one home.
+
 ## When the Strategist drafts a handoff against memory alone
 
 Same temptation as every other Strategist shortcut. The five-second test: *am I about to design against a memory I haven't re-verified, when the underlying file or table or flag the memory describes might have moved?* If yes, stop and verify.
@@ -147,6 +160,9 @@ The discipline traded a 30-second memory read per session for the elimination of
 | Treat checkpoints as memory | Checkpoints are session bookkeeping; memory is durable preference | Checkpoints in `docs/checkpoints/`; memory in `memory/` |
 | Update memory only when something breaks | The store falls behind reality; trust erodes | Update in the same session as the fact changes |
 | Use memory for a one-shot instruction | "Use the dev branch for this PR" is a turn instruction, not a memory | Turn instructions live in the chat; memory is for cross-session rules |
+| One flat index that grows past its load budget | Truncates by position; the entries at the end silently vanish | A small resident file of silent-failure hazards, plus topic indexes |
+| A resident slot for something an error would reveal | Spends the always-loaded budget on what corrects itself | Admit only hazards that fail with nothing erroring |
+| The same index copied into several places | The copies drift, and one wins at random | One live home; sync tools refuse to write a second |
 
 ## Adapt it to your setup
 

@@ -1,204 +1,109 @@
 # Architecture Graphs
 
-> A Strategist designs from outside the codebase. Read-only inspection helps, but it scales linearly with attention — you can only grep so many files before the context window fills with noise. **An architecture graph is the same information in a shape the Strategist can read in one pass.** It's the single highest-leverage Strategist input after the `AGENT.md` cascade itself.
+> A Strategist designs from outside the codebase, so a map of a repo's structure is genuinely useful — **built fresh, for the one repo about to be designed on.** Kept as a standing duty across every repo, the same map goes stale unread and starts telling confident lies. Build views on demand, answer structural questions from the code, and keep the one part that actually catches defects: reading every consumer of what changes.
 
-**Part of:** [AI Dev Governance](../README.md) · **Prerequisite reading:** [The Two Roles](two-roles.md), [The Context Cascade](context-cascade.md) · **See also:** [The QA Gate](qa-gate.md)
+**Part of:** [AI Dev Governance](../README.md) · **Prerequisite reading:** [The Two Roles](two-roles.md), [The Context Cascade](context-cascade.md) · **See also:** [The Sanity Check](sanity-check.md)
 
 ---
 
 ## The wall
 
-A Strategist sits down to design a Tier 3 change — say, "move the billing logic out of the storefront into a shared package." To write a defensible handoff, it needs to know:
+There are two walls here, and the second one was built by solving the first.
 
-- Which files import the current billing module, across every repo that uses it.
-- Which API routes call those files.
-- Which environment variables, secrets, and external services those routes touch.
-- Which scheduled jobs or webhooks depend on any of the above.
+**The first wall: the Strategist is blind.** It sits down to design a Tier 3 change — say, "move the billing logic out of the storefront into a shared package." A defensible handoff needs to know which files import the billing module, which routes call those files, which environment variables and external services those routes touch, and which scheduled jobs depend on any of it. Without a structural view, the Strategist greps blindly (slow, incomplete, and the context fills with file dumps), asks the Executor to enumerate (a human-paced round trip that comes back as prose), or guesses (the handoff ships incomplete and the gaps surface mid-execution as deltas approved in a hurry).
 
-Without a graph, the Strategist has three options, all bad:
+**The second wall: the maintained graph nobody reads.** The obvious fix is to give every repo a generated architecture graph, regenerate it as part of the [QA gate](qa-gate.md), and require every triggered handoff to cite it. An earlier version of this doc prescribed exactly that, and the shop it came from ran it for seven months. Then it measured what was happening:
 
-1. **Grep blindly across the repos.** Slow, incomplete (dynamic imports, string-based route references, and runtime config all disappear), and the context window fills with file dumps long before the picture is complete.
-2. **Ask the Executor to enumerate.** Now the Executor is doing analysis work mid-design, the round trip is human-paced, and the answer comes back as prose instead of structured data.
-3. **Guess.** The handoff ships incomplete, the Sanity Check catches *some* of the gaps (the ones that touch live data), and the rest surface during execution as deltas the operator has to approve in a hurry.
+- Strategist-authored handoffs fell from about two hundred a month to two, as more design moved to the Executor. Handoffs citing a graph fell from seventeen a month to one.
+- Across more than a hundred Executor sessions over two months, **not one opened a graph or an onboarding doc.** The diff-analysis tool ran in six.
+- The retrieval index built over the graphs had answered six queries in its lifetime.
+- More than half the graphs were six months old, because the quarterly refresh never ran. Several described retired repos. Several live repos had none.
+- One live repo's graph was 124 commits and roughly 700 code files behind. Refreshing it would have meant a near-complete re-analysis.
+- Twice, an Executor recorded that the graph was blind to most of its diff: five of nine changed files absent in one case, three of five in another.
 
-All three of these are the same root failure: **the Strategist is reasoning about a structure it can't see in one view.** An architecture graph is the antidote — a pre-computed, machine-generated map of the repo's structure that the Strategist reads as a first-class input, the way it reads an `AGENT.md`.
+And the doctrine made it worse than useless. The consumption rules told every assistant to *prefer* the graph over grepping the code, so a Strategist session would have planned confidently from a picture of a different codebase. **A stale graph that is trusted is worse than no graph at all.**
+
+There was exactly one real catch in the whole period. On a schema change, the graph flagged a file as a consumer of the changed table; reading that file found a "Pay Now" button still showing on an already-paid bill. But what found the defect was *reading every consumer of the change* — and a search of the current code does that without ever going stale.
 
 ## The rule
 
-1. **Every repo above a minimum size has a generated architecture graph, checked into the repo, regenerated by the Executor as part of the QA gate when many files change.**
-2. **The graph is generated, not hand-maintained.** Hand-maintained graphs lie within a week.
-3. **The graph is the Strategist's first read on any Tier 3 change to that repo, alongside the `AGENT.md` cascade.**
-4. **A second graph rolls up across repos** — a *registry-level* graph — for cross-family work. Same generation discipline.
-5. **If the graph is stale (older than the `AGENT.md`'s last edit, or older than the last 50 commits), it doesn't exist for planning purposes.** Regenerate before relying on it.
+1. **Answer structural questions from the current code.** *What imports this, who reads this table, what calls this route* — search the tree. It is always current, and searching is cheap.
+2. **A graph is a dated snapshot.** It describes the commit it was generated from, and its first line says which. A graph older than the repo's last commit describes a different codebase: never take a structural fact from one without checking the code, and never cite one as current.
+3. **Build a fresh view on demand, for one repo, before design.** When a Strategist is about to design work on a repo, the Executor builds a view of *that* repo and hands it over. A single-file pack of the repo is usually enough; a full structural map is worth its cost occasionally.
+4. **Generated, never hand-written.** A hand-maintained map lies within a week. If you can't generate it, don't draw it.
+5. **The defect-catching part belongs to the Sanity Check.** On triggered work, the Executor finds every consumer of what changes — in the current code — and reads each one. That is the [blast-radius leg](sanity-check.md) of the pre-edit pass.
+6. **No standing refresh duty without a reader.** A maintenance duty is only worth reinstating alongside evidence that something reads the result.
 
 ## How it works
 
-### Rule 1 — What the graph actually contains
+### What a useful view contains
 
-Skip the temptation to draw everything. A useful architecture graph contains exactly the surfaces a Strategist needs to reason about *changes*:
+Skip the temptation to draw everything. A view earns its place by answering the questions a Strategist needs to reason about *changes*:
 
-- **Modules / files**, grouped by directory.
-- **Internal dependencies** — `imports`, `requires`, package boundaries.
-- **External surfaces** — API route definitions (path → handler file), CLI entry points, exported package symbols, scheduled jobs (cron expression → handler file), webhook endpoints.
-- **External dependencies** — third-party packages, with versions; environment variables read; external services called (by hostname or SDK name).
-- **Shared infrastructure references** — pointers into the orchestrator, the registry, or any other shared resource.
+- **Modules and files**, grouped by directory, with their internal dependencies.
+- **External surfaces** — route definitions (path → handler file), CLI entry points, exported package symbols, scheduled jobs (schedule → handler), webhook endpoints.
+- **External dependencies** — third-party packages with versions, environment variables read, external services called.
+- **Shared-infrastructure references** — pointers into any orchestrator, registry, or other shared resource.
 
-What it *does not* contain: every variable, every function body, every test. The graph is for reasoning about wiring, not behavior. Behavior lives in the code; the graph tells you where to look.
+Not every variable, function body, or test. The view is for reasoning about *wiring*; behavior lives in the code, and the view tells you where to look.
 
-The output format should be machine-generated markdown or a JSON file the Strategist can paste into a chat. A typical generated file is 200–800 lines of structured prose:
+### Two kinds of fresh view
 
-```markdown
-# Architecture: storefront
+| View | What it is | When it's worth it |
+| :---- | :---- | :---- |
+| **Repo pack** | The repo's source, filtered and concatenated into one file the Strategist can load whole | The default. Minutes to build, cheap, and it *is* the code — nothing to go stale between building and reading |
+| **Structural map** | A generated analysis — layers, dependency edges, a guided tour of the main flows | A large unfamiliar repo, a cross-cutting redesign, onboarding a new Strategist to a codebase |
 
-_Generated 2026-05-30 from commit a1b2c3d._
+Either way, the generated artifact carries its generation time and the commit it was built from in its first line, so any reader can tell at a glance whether it still describes the tree.
 
-## Modules
+### The handover
 
-- `src/lib/billing/` — billing primitives. Imported by 4 routes, 1 cron.
-  - `index.ts` — exports `createInvoice`, `refundInvoice`, `getCustomer`.
-  - `stripe-adapter.ts` — wraps the Stripe SDK.
-- `src/lib/auth/` — session helpers. …
+1. The Strategist (or the Operator) says which repo the next design touches.
+2. The Executor builds the view from the current tree and hands it over — pasted into the session, or written to a scratch location the Strategist can read.
+3. The Strategist designs against it, and cites it under the [receipt standard](trust-gradient.md#the-receipt-standard): the artifact's name plus its timestamp and commit. *"Per the repo pack built at `a1b2c3d`, 2026-11-14 …"*
+4. The Executor's [pre-edit pass](sanity-check.md) checks the design's structural claims against the code as it stands *at execution time*, which may be days later. The view grounded the design; it doesn't excuse the Sanity Check.
 
-## Routes
+The view is disposable. Keep it only as long as the design it served; next time, build another.
 
-- `POST /api/checkout` → `src/app/api/checkout/route.ts`
-  - imports: `lib/billing`, `lib/auth`
-  - env: `STRIPE_SECRET_KEY`, `WEBHOOK_URL`
-- `POST /api/webhooks/stripe` → `src/app/api/webhooks/stripe/route.ts`
-  - imports: `lib/billing`
-  - env: `STRIPE_WEBHOOK_SECRET`
+### What stays maintained
 
-## Scheduled jobs
-
-- `0 3 * * *` → `src/cron/nightly-billing-rollup.ts`
-  - imports: `lib/billing`, `lib/db`
-  - kill switch: `BILLING_ROLLUP_ENABLED`
-
-## External services
-
-- Stripe (SDK), Resend (REST), Vercel KV
-```
-
-That's enough structure for the Strategist to answer "what touches billing?" in one read.
-
-### Rule 2 — Generated, not written
-
-Any graph maintained by hand decays. The discipline:
-
-- The graph is built by a small script — AST parsing for imports, framework-specific extractors for routes (Next.js conventions, Express middlewares, SvelteKit `+server.ts`, etc.), regex for env-var reads.
-- The script lives in the repo, runs in CI or via a `pnpm graph` command, and writes to a fixed path (e.g. `docs/architecture.md`).
-- The script is owned like any other code — improvements are Tier 2 changes with handoffs.
-- The output file carries the generation timestamp and the commit hash it was generated from, in its first line, so any reader can see at a glance whether it's current.
-
-If you can't write the script, *don't write the graph by hand.* A missing graph is honest. A stale hand-written graph is worse than no graph — it tells the Strategist a confident lie.
-
-### Rule 3 — When the Strategist reads it
-
-The graph slots into the Strategist's session-start protocol at exactly one point: **after the `AGENT.md` cascade, before designing.** For any Tier 3 change to a repo, or any cross-cutting Tier 2 that touches a module imported in multiple places, the Strategist reads:
-
-1. The relevant `AGENT.md` files (global → family → repo).
-2. The repo's architecture graph.
-3. The latest checkpoint and the recent changelog entries.
-4. *Then* the handoff design begins.
-
-In practice this means the graph is pasted into the Strategist's chat near the top of the session, alongside the cascade. It does not replace read-only inspection of specific files — but it dramatically narrows *which* files are worth opening.
-
-### Rule 4 — The cross-repo graph
-
-A second graph rolls up the same structural information across every repo in the enterprise: which repos exist, which families they belong to, what they expose (public URLs, deployed services), which shared resources they depend on, and which cross-repo imports exist (a monorepo's package boundaries, or a multi-repo setup's published-package consumers).
-
-This *registry-level* graph lives in the shared registry resource, not in any one repo, and is regenerated whenever a repo joins or leaves, a domain moves, or a shared package's consumers change. It's how the Strategist reasons about moves like "extract this into a shared package" or "deprecate this service" — moves that no single repo's graph can answer.
-
-The registry graph is shorter than a repo graph (one to three pages, typically), because it's about *between-repo* wiring, not within-repo wiring. Each repo's graph remains the authoritative source for its own internals.
-
-### Rule 5 — Staleness disqualifies
-
-A graph older than the most-recent `AGENT.md` edit, or older than the last 50 commits to the repo, is suspect by default. The Strategist treats it the way the Executor treats a Sanity Check that failed: *do not proceed on this input until it's been refreshed.* Regenerate the graph, then design.
-
-This rule sounds heavy but is cheap to follow because regeneration is a one-command operation. The cost is paid only when the graph really has drifted, and that's exactly the moment a stale graph would otherwise corrupt the design.
-
-The flip side: the QA gate (see [qa-gate.md](qa-gate.md)) bakes regeneration in for changes that touch many files. A change that touches a single test file doesn't trigger regeneration; a change that adds three routes and a cron does. The exact threshold lives in the repo's `AGENT.md`.
-
-## The Graph Consultation Pass
-
-Rules 1–5 govern **production** of graphs. This section governs **consumption** — and consumption is where graphs usually fail, because a generated, committed, current graph that nobody opens is worth exactly as much as no graph at all.
-
-The obligation splits across the two roles by what each one can actually do, and it applies to a **narrow, enumerated** set of work. Everything else gets light consultation or none, and you just note that.
-
-**Triggers.** The pass applies to work that:
-
-- touches two or more families, or
-- modifies a shared resource (the orchestrator, the registry, a cross-family engine), or
-- introduces material change in a load-bearing domain — authentication and authorization, billing or revenue surfaces, content and voice engines, multi-tenancy, database-layer decisions — or
-- locks a roadmap item with documented cross-repo dependencies.
-
-A narrow, single-repo, low-risk change inside one family's established conventions doesn't need it.
-
-### The Strategist's obligation
-
-Before producing a triggered handoff, assessment, or major recommendation, the Strategist must:
-
-- **Read and cite** the relevant graph artifacts by name — the repo graph, the onboarding doc, the domain graph where one exists, and the cross-repo synthesis documents.
-- **Include each cited graph's generation timestamp.** This is mandatory, not decorative. Staleness is load-bearing, and a citation without a date is a citation you can't evaluate.
-- **Cite concrete findings**, or explicitly state that none were found: *"the graph shows this pattern in four repos; two already use the proposed approach successfully"* or *"no material signal after reviewing X, Y, Z."* Both are acceptable. Silence is not.
-- **Flag a missing graph.** If triggered work touches a significant repo that has no current graph, say so in the handoff — and the Executor treats generating it as part of executing the work.
-
-### The Executor's obligation
-
-During the [pre-edit Sanity Pass](sanity-check.md) on triggered work, the Executor must:
-
-- **Run the diff-scoped analysis** of the change against the repo's committed graph, and include the output — or a structured summary of it — in the delta report.
-- **Ask the graph at least one targeted architectural question** when the work is cross-family, touches a shared resource, or introduces a new pattern.
-- **Evaluate staleness against reality**, not just against the timestamp: is the graph older than the repo's most recent significant architectural commit? Say so in the delta, and recommend a refresh when the repo is a significant one.
-
-### When the consultation is missing
-
-If a triggered handoff arrives *without* the required citations, the Executor emits a [delta](sanity-check.md) documenting the gap and then does one of two things: pauses for clarification, or proceeds under an explicitly documented assumption about the architectural context. Either is fine. What isn't fine is proceeding as though the consultation happened.
-
-Both sides have teeth here on purpose. A Strategist that skips the citations gets a delta. An Executor that skips the diff-scoped analysis on triggered work is itself delta-worthy in any subsequent review. The pass only works if it's symmetric — otherwise it degrades into "the Strategist writes graph citations nobody reads," which is the same failure one level up.
+Retiring the graph refresh does not mean retiring every shared reference. Small, curated, cross-repo files that sessions *actually read* stay current exactly as before — the [infrastructure-limits file](infrastructure-limits.md), a map of every scheduled job across the fleet, a short registry of which repos exist and what they expose. The test is the same one that retired the graphs: **does something read it?** A registry that every infrastructure session consults earns its upkeep. A per-repo graph that nothing opens doesn't, however well-generated it is.
 
 ## Worked example
 
-A shop runs five repos. The Strategist is asked to extract the billing logic from the storefront and the membership site into a shared `@org/billing` package.
+A shop runs five repos. The Strategist is asked to extract the billing logic from the storefront and the membership site into a shared package.
 
-Without graphs, the Strategist would have to: grep two repos for "stripe" and "billing"; read the README of each; sample a few route files; guess at which env vars overlap; write a handoff that's 60% complete and pray the Sanity Check catches the rest.
+1. **The view.** The Executor packs both repos from the current tree — a few minutes — and hands the two files over, each headed with its commit.
+2. **The design.** Two minutes of reading shows the storefront has four routes and one scheduled job importing `lib/billing`; the membership site has three routes and no jobs. Both read the same payment-provider secret, but the membership site also reads a price identifier the storefront doesn't, and calls the provider's REST API with `fetch()` rather than its SDK. The handoff is designed against that picture: shared package first, storefront migrated first (more usage, surfaces integration problems early), then membership, with environment handling specified per repo.
+3. **The blast-radius leg.** Three days later the Executor runs the pre-edit pass. The trigger fires (billing), so it searches the *current* code for every importer of the billing module and every reader of the invoice table. The search turns up a customer-portal file added the day after the packs were built — it renders an invoice's payment state and would have broken on the new package's types. One added step in the delta, approved, executed.
 
-With graphs:
-
-1. The Strategist opens the storefront's architecture graph and the membership site's graph side by side. Two minutes of reading reveals: storefront has 4 routes + 1 cron importing `lib/billing`; membership site has 3 routes + 0 crons. Both touch `STRIPE_SECRET_KEY`, but membership *also* reads a `STRIPE_PRICE_ID_MEMBERSHIP` that storefront doesn't. Storefront uses the Stripe SDK; membership uses raw `fetch()` against the REST API.
-2. The Strategist opens the registry graph. Confirms no other repo imports billing logic today. Notes that the shared `orchestrator` repo has a billing-related cron that *should* migrate to the new package but currently lives in storefront.
-3. Handoff is designed against this complete picture: create the shared package, migrate storefront first (more usage, will surface integration issues), then membership, then move the orchestrator cron. Env-var handling is specified per repo. The Sanity Check has very little to find because the design started from accurate structure instead of from grep.
-
-Total Strategist time on the picture-gathering step: 10 minutes instead of 60. The handoff ships in one round trip instead of three.
+The pack made the design fast. The search at execution time made it correct. Neither required a graph that someone had to remember to refresh.
 
 ## Anti-patterns
 
 | Anti-pattern | Why it bites | Do instead |
 | :---- | :---- | :---- |
-| Maintain the graph by hand | Drifts within a week; the lie is worse than the absence | Generate it from a script; commit the script |
-| Skip the graph because the repo "isn't that complex" | Strategist still wastes a session grepping; small repos still have routes, env vars, jobs | Generate even a short graph; the cost is near-zero once the script exists |
-| Treat the graph as the source of truth for behavior | It only contains wiring | Use it to find files; read the files for behavior |
-| Generate it once and never again | Stale graphs corrupt designs they look authoritative on | Regenerate as part of the QA gate when many files change; treat as stale by default after N commits |
-| Skip the registry-level graph because "we know our repos" | Knowing them by memory doesn't survive a Strategist handoff; the next Strategist session doesn't have that memory | Maintain a short cross-repo graph alongside the per-repo ones |
-| Paste the graph into chat without the timestamp | Strategist can't tell if it's fresh | First line of the generated file is always the generation timestamp + commit hash |
-| Put behavior detail in the graph | Becomes maintenance burden, becomes outdated, defeats the purpose | Wiring only. Behavior lives in code |
-| Generate graphs faithfully and never consult them | A current graph nobody opens is worth what no graph is worth | The consultation pass, with citations, on triggered work |
-| Cite a graph without its generation timestamp | An undated citation can't be evaluated for staleness — it just looks rigorous | Timestamp is mandatory in every citation |
-| Executing a triggered handoff that skipped the citations, as if it hadn't | The design's architectural grounding is unknown and now invisible | Emit a delta; pause or proceed under a written assumption |
+| A standing duty to regenerate graphs after every change | Costs a near-full re-analysis per repo for output nobody opens, and the duty quietly stops running | Build a view on demand for the one repo being designed on |
+| A doctrine that prefers the graph over the code | A stale graph becomes a confident wrong plan | Code is the source of truth; a graph is a dated hint |
+| Mandatory graph citations in every triggered handoff | Becomes ritual: citations written, nothing read | Require the blast-radius read instead — it's the part that finds defects |
+| A refresh schedule ("quarterly") | Schedules for unread artifacts don't run; most graphs end up six months old | Make freshness a precondition at the point of use |
+| Maintaining the graph by hand | Drifts within a week; the lie is worse than the absence | Generate it from the tree, or don't have one |
+| Citing a view without its timestamp and commit | Can't be evaluated for staleness — it just looks rigorous | First line of every generated view names its commit; cite it |
+| Treating the view as the source of truth for behavior | It contains wiring only | Use it to find files; read the files for behavior |
+| Keeping the view after the design ships | The next design reads it as current | Discard it; build another next time |
 
 ## Adapt it to your setup
 
-- **Solo, one repo:** a 100-line generated `docs/architecture.md` is enough. The script can be 50 lines of Node.js. The Strategist still benefits — even solo, you'll forget what your own code does in three months.
-- **Few repos, no monorepo tooling:** generate per-repo graphs with a small script per framework. The registry graph can start as a hand-curated table that links to each repo's generated graph; promote to generated when the cost of hand-curation exceeds 15 minutes.
-- **Monorepo:** the per-package graph is what the Strategist reads. The "registry" is just the monorepo root listing packages, their exported symbols, and their cross-package imports — usually generated for free by your monorepo tool (Turborepo, Nx, etc.).
-- **Heterogeneous stacks:** one script per language/framework; they all write to the same `docs/architecture.md` path. The format stays uniform across repos so the Strategist learns to read it in one shape.
+- **Solo, one repo:** you probably need no graph at all. When you want your Strategist to see the repo, pack it into one file and paste it in. Your Executor's search is the blast-radius check.
+- **A few repos:** pack per repo, on demand. Keep one hand-curated table of what each repo is and exposes; it's short, it changes rarely, and every cross-repo design reads it.
+- **Monorepo:** the "repo" you pack is the package being changed, plus the root listing of packages and their cross-package imports — which your monorepo tool can usually emit for free.
+- **You already maintain graphs:** measure before you keep paying. Count how many sessions opened one last month, and how far behind the newest commit each one is. If the answers are "few" and "far," retire the refresh duty and keep the generator for on-demand use.
 
 ## Related
 
-- [The Two Roles](two-roles.md) — explains the read-only inspection window the graph extends
-- [The Sanity Check](sanity-check.md) — the pre-edit pass whose fourth leg is this doc's consultation obligation
-- [The Trust Gradient](trust-gradient.md) — the receipt standard behind "cite the graph with its timestamp"
-- [The Context Cascade](context-cascade.md) — the other Strategist input that travels with the graph
-- [The QA Gate](qa-gate.md) — the post-execution checkpoint that triggers regeneration
-- [Autonomous Loops](autonomous-loops.md) — the graph is where crons and webhooks first become legible across repos
+- [The Sanity Check](sanity-check.md) — the blast-radius leg, which replaced the graph-consultation step
+- [The Two Roles](two-roles.md) — the read-only inspection window a fresh view extends
+- [The Trust Gradient](trust-gradient.md) — the receipt standard behind "cite the view with its commit"
+- [The Context Cascade](context-cascade.md) — the other Strategist input that travels with a fresh view
+- [Durable Memory](durable-memory.md) — the same lesson for remembered facts: a dated claim, verified before use
 - Back to the [main playbook](../README.md)

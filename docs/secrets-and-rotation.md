@@ -64,6 +64,31 @@ Once the Executor may *use* credentials, it needs somewhere to get them, and "as
 
 This is the [clearance](operator-clearances.md) pattern applied to credentials: the human keeps the part only a human can hold — origination, custody, rotation — and the mechanical part moves to the agent, with the value never becoming visible on the way.
 
+### Two readers, two answers: keep duplicate names at zero
+
+A flat credential file has two kinds of reader, and they disagree. A search that stops at the first match (`grep -m1`) takes the **first** occurrence of a name; `source` and most dotenv loaders take the **last**. Store the same name twice and the two readers silently get two different secrets.
+
+That isn't hypothetical. One store held five names twice. In the surprising direction, the *first* copies of a scheduled-job secret and a mail key were one project's production values — so every `source` of the store loaded the wrong secret for both, in a repo whose local environment already pointed at production. Two other duplicates belonged to two different businesses' shipping accounts: the wrong one buys a label on the wrong company's bill.
+
+- **Prefix every second instance of a provider** (`<PROJECT>_PROVIDER_KEY`) at the moment it's added, and keep duplicate names at zero. A prefix is enforcement; "read the right section" is discipline, and discipline erodes.
+- **Record which instance each key is** in the section comment — project, account, region, what it controls. A key whose owner can only be found by decoding it is a latent outage.
+- **Never source a repo's environment file and the store into one shell.** Last-wins applies across files too: one session sourced both, the store's database URL silently overwrote the repo's, and a dev URL from one project was written into another project's preview environment. The API returned 200. Parse each file for the one key you need instead.
+- **Resolve the account from the repo you're in, and confirm it.** An integration bound to one account answers confidently — and emptily, or with another business's data — when asked about a different one. One identity call (*"which account is this key?"*) settles it; never infer it from a variable name, and never write an account's domain or project list into prose, where it's stale within a day. Ask the API.
+
+### A bad read and a bad secret look identical
+
+Before reporting a credential as revoked, prove the *read* was right. A stray quote in the store emptied 22 of 104 keys when it was sourced; the empty bearer token got a perfectly truthful 401, which reads as *"the vendor revoked our key."* Reading a value directly without stripping its quotes sends the token wrapped in quote marks, and vendors answer that with an invalid-token error — the *same* error a genuinely bogus key gets, so "it fails the same way as a known-bad key" proves nothing.
+
+It recurred three times in one month. On the third, the diagnostic printed a token length two characters longer than the real token's, and it was read past because "no whitespace" was taken to mean clean. Two rows were filed asking the Operator to mint replacements for live credentials; on one occasion, a deletion was one step away. A different cause produced the same genre once more: a default HTTP client's user agent was blocked by a web application firewall with a 403, the 403 was read as *"this key is send-only,"* and two replacement keys were created for a key that had full access all along. (Interpreting 401 versus 403: [Reading the Outside World](external-sources.md#absence-versus-failure).)
+
+- **Strip quotes and carriage returns in the same expression that reads the value**, never in a later step. `.trim()` doesn't remove quotes.
+- **Never blanket-strip.** Some values need their quotes — an unquoted `&` in a connection string backgrounds the command and silently truncates it.
+- **Before calling a credential dead, filing a defect, or deleting anything:** show the stripped length, and repeat the probe from a second client. Two clients disagreeing means the problem is the client.
+
+### A data-plane key is not a control-plane key
+
+Many providers issue two kinds of credential: one that reaches your project's *data* (often bypassing row-level security), and an account-scoped token for the provider's *management* API. They are not interchangeable. A full-power data key gets a 401 from the management API — which is a wrong-plane answer, not a bad key. Know which token reaches which plane, and record it beside each key in the store.
+
 ### Rule 3 — One source of truth per environment
 
 Per environment, the values live in exactly one place:
@@ -159,6 +184,11 @@ The discipline traded a 30-minute setup for a leak resolution that took 15 minut
 | Routing a credential through the human because "an AI shouldn't touch secrets" | Conflates use with display, and often puts the value in the transcript en route | The Executor uses without showing; the Operator originates and rotates |
 | Giving a recon or bulk-compute surface a credential "just for this one call" | Non-trust surfaces are outside the boundary by definition; there is no small version of this | Credentialed work is an authoring actor's, always |
 | Writing a credential into `.git/config` or a shell history to avoid re-typing it | Both are durable, both get read, neither is where you'd look after a leak | Use it ephemerally, per invocation, from the store |
+| A second, unprefixed instance of a provider in the store | First-match and last-match readers return different secrets, silently | Prefix it when it's added; keep duplicate names at zero |
+| Sourcing a repo's environment file and the store together | Last wins across files; the wrong URL lands in the wrong project | Parse each file for the one key you need |
+| Reporting a credential revoked on a 401 | A bad read and a bad secret return the same error | Show the stripped length; re-probe from a second client |
+| Reading a 401 from a management API as a bad key | It's the wrong plane, not the wrong key | Record which credential reaches which plane |
+| Trusting a public repo's successful read to prove a token works | Public repos fall through to anonymous access; a malformed token reads fine and fails only on write | Verify a token against an authenticated identity call, or a non-mutating write check |
 
 ## Adapt it to your setup
 

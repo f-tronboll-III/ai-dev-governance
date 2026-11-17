@@ -24,7 +24,7 @@
 
 **Your AI agent forgot everything from yesterday. It just overwrote a file that was working. And the "plan" it confidently executed was based on a database that hasn't looked like that in weeks.**
 
-If you've felt any of that, you've hit the wall this repo is about. It's not a tool to install — it's the governance model a small shop evolved while running a cast of AI actors across ~30 repositories, written down so you can skip the painful parts. Every pattern here is the scar tissue of a specific mistake.
+If you've felt any of that, you've hit the wall this repo is about. It's not a tool to install — it's the governance model a small shop evolved while running a cast of AI actors across ~40 repositories, written down so you can skip the painful parts. Every pattern here is the scar tissue of a specific mistake.
 
 > **The goal isn't to make AI write more code faster — it's to make sure the code it writes is the code you actually wanted, every time, without you watching it type.**
 
@@ -109,7 +109,7 @@ Each row is a role you can fill with any vendor, or leave empty. The shop this p
 
 ---
 
-## The seven lessons at a glance
+## The eight lessons at a glance
 
 1. The planning AI is blind and amnesiac — so don't let it touch code.
 2. Sessions die mid-task — so write to disk constantly and verify.
@@ -118,10 +118,11 @@ Each row is a role you can fill with any vendor, or leave empty. The shop this p
 5. "Roadmaps" multiply and drift — so stop expecting them to sync.
 6. "Done" means shipped and verified — not "the code is written."
 7. Not every AI in the room has earned the same credence — so grade them, and tag what hasn't been checked.
+8. Nothing erroring is not the same as working — so verify where it landed, not that it answered.
 
 ---
 
-## Part I — Seven lessons that shaped everything
+## Part I — Eight lessons that shaped everything
 
 Each of these began as a painful mistake. The protocols in the [architecture reference](docs/architecture.md) exist to make each mistake hard to repeat.
 
@@ -169,11 +170,19 @@ The problem is that all of them produce the *same artifact* — confident, fluen
 
 **The rule:** grade the *actor*, not the prose. Authoring actors are believed. A read-only critic is believed on strategy and checked on live state, because it reads a snapshot and goes stale in hours. Everything else produces tagged leads that expire — and the tag doesn't come off until an in-trust actor confirms the fact against a source it can actually see. Verification flows one way: up. → [Full walkthrough](docs/trust-gradient.md)
 
+### 8. Nothing erroring is not the same as working — so verify where it landed, not that it answered
+
+The most expensive failures in the shop's later months had one thing in common: nothing errored. A link check passed on a domain that had lapsed into a parking service. A draft tool returned an id for an email that had already gone to the client. Three pushes succeeded and the host built none of them. A check script that couldn't run exited 0. A local environment file pointed at production, and every command run against it reported success.
+
+An agent is built to proceed on success, so each healthy-looking answer from the wrong place closed the investigation instead of opening it. A response describes the *request*; only the destination describes the *result*.
+
+**The rule:** name the destination before calling anything done, and look there — from outside the system that reported success. Every check you rely on must be able to say *"I couldn't look,"* every defect you observe gets a durable disposition rather than a mention, and every rule whose failure would be silent or irreversible is enforced by something other than the agent's memory. → [Verify by Destination](docs/verify-by-destination.md) · [Honest Checks](docs/honest-checks.md) · [Defect Disposition](docs/defect-disposition.md) · [Enforcement, Not Attestation](docs/enforcement.md)
+
 ---
 
 ## Part II — The architecture (reference)
 
-The seven lessons above tell you *what failed* and the shape of the discipline that prevents each failure. The **[architecture reference](docs/architecture.md)** turns that into a working manual: four foundations, four layered protocols, the end-to-end lifecycle of one phase, and the scaling-down rules so you don't over-engineer a one-repo setup. Read it second, after the lessons above have given you the *why*.
+The eight lessons above tell you *what failed* and the shape of the discipline that prevents each failure. The **[architecture reference](docs/architecture.md)** turns that into a working manual: four foundations, four layered protocols, the end-to-end lifecycle of one phase, and the scaling-down rules so you don't over-engineer a one-repo setup. Read it second, after the lessons above have given you the *why*.
 
 At a glance:
 
@@ -198,8 +207,9 @@ You've over-engineered this if:
 - You're treating the Strategist/Executor split as different *products* when one tool could play both roles with discipline.
 - You're maintaining trust grades for a cast of one.
 - You're gating your agent on steps it can do more safely than you can, and the gate has never once caught anything.
+- You're writing guards and posture files for a single agent that has no write access to anything that matters.
 
-**The transferable core is small:** two roles, files as the only memory, reality-check before executing, declared precedence, accept drift and catch it on audit, and tag anything you haven't checked. Everything else earns its place by surviving a real failure first.
+**The transferable core is small:** two roles, files as the only memory, reality-check before executing, declared precedence, accept drift and catch it on audit, tag anything you haven't checked, and verify where things landed. Everything else earns its place by surviving a real failure first.
 
 The full scale-down table is in the [architecture reference](docs/architecture.md#when-youre-over-engineering-this).
 
@@ -214,23 +224,28 @@ Each facet of the model, presented in isolation with worked examples. Start with
 | [Getting Started](docs/getting-started.md) | The smallest useful adoption: two roles, one `AGENT.md`, one checkpoint — in 30 minutes |
 | [The Two Roles](docs/two-roles.md) | Choosing your Strategist and Executor; drawing the line between them; the implicit Operator role |
 | [The Trust Gradient](docs/trust-gradient.md) | Grading a cast of five AI surfaces: who authors, who's provisional, whose output is a tagged lead that expires |
-| [The Context Cascade](docs/context-cascade.md) | Building an `AGENT.md` hierarchy that resolves conflicts cleanly |
+| [The Context Cascade](docs/context-cascade.md) | Building an `AGENT.md` hierarchy that resolves conflicts cleanly — and keeping the top file a router, not an encyclopedia |
 | [File Handling](docs/file-handling.md) | Which tool, which filesystem, verify by reading back, recover from crashes |
 | [Checkpoints & Handoffs](docs/checkpoints-handoffs.md) | Templates, the session-resume protocol, and the state cascade when your governance file outgrows one page |
 | [The Sanity Check](docs/sanity-check.md) | Validating a blind spec against live production before it runs |
 | [Bounded Deviation](docs/bounded-deviation.md) | The exact rule for when an Executor may stray from the spec |
 | [Operator Clearances](docs/operator-clearances.md) | Which human approval gates are protecting you and which are ceremony — and how to retire the second kind safely |
+| [Enforcement, Not Attestation](docs/enforcement.md) | Why "you're read-only today" changes what an agent believes, not what it can do — capability inventories, posture files, guards, and quarantine by construction |
 | [The Delta Log](docs/delta-log.md) | Counting deltas across families until a pattern becomes a standard |
 | [Governance Sync](docs/governance-sync.md) | Keeping Strategist and Executor in sync through files; handling sync conflicts |
 | [The Roadmap System](docs/roadmap-system.md) | Two genres, the index, and why surfaces are allowed to drift |
 | [The QA Gate](docs/qa-gate.md) | The fixed checklist that defines "done" |
+| [Defect Disposition](docs/defect-disposition.md) | Fix it, record it, or pin it under a ceiling that only goes down — why "pre-existing, not my work" is not a disposition |
+| [Honest Checks](docs/honest-checks.md) | Three exit codes, reported coverage, negative controls — and never trading a security control for a clean report |
+| [Verify by Destination](docs/verify-by-destination.md) | A 200, a message id, and a successful push all describe the request; only the destination describes the result |
 | [Model Orchestration](docs/model-orchestration.md) | Down-model the gathering, keep the judging Heavy — plus the second axis, reasoning effort, that is not the same dial |
 | [Durable Memory](docs/durable-memory.md) | One fact per file, typed and dated, in an indexed cross-session store — the antidote to re-correcting the same thing every session |
-| [Architecture Graphs](docs/architecture-graphs.md) | Generated maps of repo structure that turn the Strategist from blind to fluent |
+| [Architecture Graphs](docs/architecture-graphs.md) | Fresh, on-demand views of one repo for a Strategist about to design on it — and why a standing refresh duty was retired on measurement |
 | [Reading the Outside World](docs/external-sources.md) | Primary sources, the fetch-render-distill ladder, and why a monitor with the wrong user agent watches nothing |
 | [Infrastructure Limits](docs/infrastructure-limits.md) | A dated, operator-verified file that beats stale AI memory about vendor limits, prices, and gotchas |
 | [Autonomous Loops](docs/autonomous-loops.md) | Kill switches, heartbeats, and the discipline for code that runs when no one is watching |
-| [Secrets and Rotation](docs/secrets-and-rotation.md) | Credential hygiene with two AIs in the room; rotation and leak protocols |
+| [Secrets and Rotation](docs/secrets-and-rotation.md) | Credential hygiene with two AIs in the room; rotation and leak protocols; why a bad read looks exactly like a revoked key |
+| [Environment Targeting](docs/environment-targeting.md) | Which database is this? Markers beside every credential, "no marker means production," and the guard that reads them |
 | [Dependency Management](docs/dependency-management.md) | Lockfile-as-truth; cadences for patch / minor / major; monthly audit |
 | [Cost Management](docs/cost-management.md) | Budgets, monthly review, circuit breakers, and treating overruns as incidents |
 
@@ -248,6 +263,7 @@ You don't need three families, a dashboard, or an orchestrator to use most of th
 - **Write down which rule wins when rules conflict, before you need the answer.**
 - **Let your tracking surfaces drift, and keep one index that catches the drift.**
 - **Tag what hasn't been verified, and keep the tag on until something that can see the world removes it.** Fluent output is not checked output.
+- **Check the destination, not the response.** A 200, an id, and a successful push are claims about the request. Look where the work was supposed to land.
 
 Start with the two-role split and checkpoints. Add the cascade, the Sanity Check, and the roadmap index as your repo count grows and the failure modes above start to bite.
 
@@ -275,7 +291,7 @@ Borrow it, adapt it, make it yours. Prose is licensed [CC BY 4.0](LICENSE); attr
 
 ## Provenance
 
-Patterns documented here are used in production at [Backcountry Tech Solutions](https://backcountry.tronboll.us) and [Steampunk Farms](https://steampunkfarms.org), where this playbook governs ~30 repos across three families plus a shared services layer. The voice and the lessons are F. Tronboll III's; the operational implementation runs there.
+Patterns documented here are used in production at [Backcountry Tech Solutions](https://backcountry.tronboll.us) and [Steampunk Farms](https://steampunkfarms.org), where this playbook governs ~40 repos across three families plus a shared services layer. The voice and the lessons are F. Tronboll III's; the operational implementation runs there.
 
 ---
 

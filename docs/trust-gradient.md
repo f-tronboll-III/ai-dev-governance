@@ -59,6 +59,20 @@ Six clauses hold the gradient up:
 
 The [Operator](two-roles.md#the-operator-the-implicit-third-role) sits outside the gradient because they're the one who *sets* it. Promoting a tool from non-trust to provisional is an Operator decision, made once and written down — never an in-session judgment call because the output happened to look good.
 
+### "May never" is a prohibition, not a capability limit
+
+The last column of that table is a list of promises unless something enforces it. One shop's roster recorded a second assistant seat as *forbidden to change any live system*; asked to list its own tools, it reported write access to production SQL, payment refunds, and email send. It had never used them. A scheduled monitoring agent held deployment, DNS, and database write connectors it had undertaken not to use. Both entries had been read for months as describing what those actors *could* do.
+
+So write the roster honestly — *"holds write connectors it has undertaken not to use: a prohibition, not a limit"* — then remove every connector with no purpose for that actor, and track the rest as open until it's done. The grade decides whose output is believed. Whether an actor *can* act is a separate question, and [Enforcement, Not Attestation](enforcement.md) is how you answer it.
+
+### One label per surface
+
+Give each actor one literal name that the Operator uses in prompts and every live document uses, and retire ambiguous aliases explicitly — old records keep the old word, live rules don't. **Two surfaces from the same vendor are two rows**, not one: a local command-line tool, a chat app with a repo connector, and a scheduled cloud agent from the same company can sit at three different grades. One shop's scheduled agent ran for a day with no roster row at all, because everyone assumed it was "the same tool" as one that had a row.
+
+### Third-party targets
+
+A recon agent pointed at a system you don't operate can cross a line no output can undo. One recon pass, asked to review a prospect's public site, probed for login pages and exposed configuration files on it. Every finding it produced that way was discarded — from the brief, the record, and the report — because *a finding you can't say out loud isn't an asset.* Put the boundary in the delegation itself: no path enumeration, no authentication attempts, no writes, low concurrency, against anything you don't operate. And carry the tag forward into anything said to that third party: an unverified finding is asked as a question, never asserted.
+
 ### Provisional trust — trust the strategy, verify the facts
 
 The middle grade is the one people get wrong, in both directions.
@@ -114,6 +128,8 @@ Strategist designs the integration from the 4 verified rows.
 
 Two details in that flow do real work. The tag comes off **per fact, not per document** — verifying four rows does not clear the other sixteen. And un-cleared leads **expire**: live-web and market findings are dated and provisional by nature; a day-old sweep gets re-pulled rather than re-used.
 
+The tag is strongest when nobody has to remember to apply it. Launch the recon agent only through a wrapper that writes its report to a drop folder outside every repo — **the path is the label** — and prepends the exact prompt it was given, so the record of what was asked isn't the agent's to edit. See [quarantine by construction](enforcement.md#quarantine-by-construction).
+
 ## Worked example
 
 A shop needs to pick a transactional-email vendor.
@@ -139,6 +155,9 @@ Five surfaces, one deliverable, and at no point did a fluent paragraph get mista
 | Using a wrapper around your own primary model family as the outside view | It shares the blind spots it exists to catch | Pick a different lineage when the job is red-teaming |
 | Passing personal data to a non-trust surface "just this once" | The boundary is the whole control; one exception makes it advisory | Any personal-data reasoning stays with authoring actors |
 | Accepting "verified" with no citation | Unfalsifiable, and it's the exact shape of the collision that earned the receipt standard | Demand a file-anchored receipt or an honest "from memory, re-verify" |
+| Reading "may never write production" as "can't" | It holds the connectors; the sentence is a promise | Inventory its tools; record "holds, undertakes not to use"; remove what has no purpose |
+| One roster row for several surfaces from one vendor | They sit at different grades; one runs ungraded | One row per surface |
+| Letting a recon agent probe a system you don't operate | Some findings can't be unseen or used | The boundary goes in the delegation; discard anything that crossed it |
 
 ## Adapt it to your setup
 
@@ -156,4 +175,5 @@ Five surfaces, one deliverable, and at no point did a fluent paragraph get mista
 - [The Sanity Check](sanity-check.md) — the pre-edit pass that runs on every handoff regardless of who authored it
 - [Reading the Outside World](external-sources.md) — where most non-trust facts originate, and how they're verified against a primary source
 - [Durable Memory](durable-memory.md) — a recalled memory is itself a dated claim, not live state; it clears the same way
+- [Enforcement, Not Attestation](enforcement.md) — turning each actor's "may never" into something that actually stops it
 - Back to the [main playbook](../README.md)

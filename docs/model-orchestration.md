@@ -67,7 +67,7 @@ Keep it on **Heavy** — no delegation, or delegate only sub-parts — when **an
 
 - The output mutates production, or gets acted on without a downstream verifier.
 - It's a Sanity Check step (Rule 3 — never down-modeled).
-- It's architecture, cross-project design, or a decision that triggers a knowledge-graph or registry update.
+- It's architecture, cross-project design, or a decision that changes a shared registry.
 - It requires holding large cross-file context and reasoning over contradictions.
 - It's ambiguity resolution that, if wrong, expands scope or risk.
 
@@ -105,6 +105,19 @@ Don't fan out work that needs shared context between agents, and don't let any f
 - **Workflows:** assign a tier per stage — finder and reader stages cheap, synthesis and verify stages Heavy. Record the per-stage tier where the workflow's shape is written down, so the routing is auditable.
 - **Effort, where the dial exists:** set it per stage alongside the tier. The canonical fan-out shape is *mechanical finder stages at Light tier and low effort; the synthesis and verify stage at Heavy tier and deep effort.* On the main loop, treat effort as a dial you raise for a hard stretch and lower afterward — not a setting you configure once.
 - **Disclosure:** when a result that fed a decision came from a down-modeled *or* low-effort agent, note the provenance. The human reading the conclusion should know which tier gathered the evidence under it, and how deeply.
+
+### When the harness says "don't delegate"
+
+Some host applications append their own instructions to the agent's system prompt — for example, *don't spawn subagents unless the user asked for it.* An appended instruction outranks every context file you write, no setting removes it, and it is easy to mistake for your own configuration. One shop lost a session to it: the Executor silently skipped a protocol-mandated analysis step because the step spawned subagents, and the orchestration doctrine had become unexecutable without anyone noticing.
+
+The instruction was conditional — *unless the user asked* — so the fix was to satisfy the condition, not fight it:
+
+1. **Find where the instruction comes from** before changing anything. Search your settings, context files, and output styles; if it's in none of them, it's the host's.
+2. **Write the request once, as a standing request in the Operator's voice**, in the user-level context file: *"The Operator requests, standingly, that you use subagents whenever your own judgment says delegation is right."*
+3. **Mark the paragraph load-bearing**, and tie it to the doctrine it enables: *don't delete this without also removing the down-modeling rules — without it, delegation silently stops.* Otherwise the next tidy-up deletes it as clutter.
+4. **Keep the costly modes out of it.** A multi-agent workflow mode that can spawn dozens of agents per task has a different cost profile; it stays a per-task opt-in that the Operator makes, never covered by the standing request.
+
+The recon agent fits the same frame. A non-trust tool the Operator already pays for is cheap breadth for hyper-granular, live-web collection — but only through a [wrapper that quarantines its output](enforcement.md#quarantine-by-construction), and only when the question needs breadth. A lookup the Executor can answer in two calls of its own doesn't justify the round trip.
 
 ### Which surface, not just which tier
 
@@ -159,6 +172,8 @@ The anti-pattern version: one heavy agent reads both repos end to end, arrives a
 | Staying on the heavy model at shallow effort for a Sanity Pass | Defeats Rule 3 through the back door — the tier was never the point, the thinking was | Stay-Heavy triggers carry the effort floor too |
 | An agent self-enabling a fan-out mode that multiplies its own agent count | Orchestration breadth is a spend decision the human owns, not a depth setting | Human opts in; the agent never selects it for itself |
 | A project file that *weakens* the floor instead of tightening it | A lower-scope file that permits a down-model the floor forbids quietly reopens the failure mode everywhere it applies | Lower scopes may only add *stricter* rules, never loosen |
+| Fighting a host-appended "don't delegate" line with a context-file override | The appended instruction outranks your files | Satisfy its condition: a standing request in the Operator's voice |
+| Pruning the standing-request paragraph as clutter | Delegation silently stops, and the doctrine becomes unexecutable | Mark it load-bearing, tied to the doctrine it enables |
 
 ## Adapt it to your setup
 

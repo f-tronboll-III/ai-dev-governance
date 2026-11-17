@@ -25,7 +25,9 @@ The Executor runs a **pre-edit pass** — four quick checks, in order, before to
 1. **Data-state check** — query the records the spec assumes. Do they exist? In the state the spec expects? *(Does this billing record exist, and has it issued anything?)*
 2. **Conflict check** — naming collisions, unique constraints, foreign-key relationships, live references. *(Will this rename break a name-based reference somewhere?)*
 3. **Reversibility check** — flag any step that touches something already **sent, paid, or deployed.** These are the steps that hurt when they're wrong.
-4. **Structural-context check** *(on cross-cutting work only)* — did the spec's author consult the [architecture graph](architecture-graphs.md), and is that graph current relative to the repo's recent architectural commits? A design written against a six-month-old structure map is blind in a second, quieter way. See [the Graph Consultation Pass](architecture-graphs.md#the-graph-consultation-pass) for the triggers and what a missing consultation obliges you to do.
+4. **Blast-radius check** *(on triggered work only)* — find every consumer of what the spec changes, **in the current code**: importers of a changed module, readers and writers of a changed table or column, callers of a changed route or action. Read each one and confirm it still behaves correctly after the change; report any that break — or that were already broken — in the delta. Search for them; never take the list from a structure map or the spec's own description of the repo, which describe a dated snapshot. *(Why this replaced a graph-consultation step: [Architecture Graphs](architecture-graphs.md#the-wall).)*
+
+**What triggers the fourth leg.** Work that touches two or more families of repos; modifies a shared resource; or makes a material change in a load-bearing domain — authentication and authorization, billing and revenue, content or voice engines, multi-tenancy, a database-layer decision, or a roadmap item locked with cross-repo dependencies. A narrow, single-repo change inside established conventions runs the first three legs only.
 
 If all four pass, the Executor proceeds normally. If any fails, it emits a **delta** and waits:
 
@@ -85,6 +87,9 @@ The same engagement surfaced three silent production breaks with exactly this sh
 | Reading the schema and calling the data-state check done | The table exists and holds five rows; the feature needs five thousand | Run an aggregate census on every load-bearing table |
 | Handing the reality check to the human as an Operator Action | Inverts the whole protocol — the Executor is the role that can see production | Reads belong to the Executor, in every environment |
 | "It's public, I read the route" | Auth-gate ordering and middleware bypasses make source misleading | Hit the live URL and check the content type |
+| Taking the list of consumers from a structure map | The map is a snapshot; the consumer added last week isn't in it | Search the current code for every importer, reader, and caller |
+| Skipping the consumer read because the change "only touches one file" | The defect is usually in a consumer — the paid bill still showing "Pay Now" | On triggered work, read every consumer, not just the changed file |
+| Running the pass without knowing which environment your queries hit | A data-state check against the wrong database proves nothing about production | Confirm the target first — [Environment Targeting](environment-targeting.md) |
 
 ## Adapt it to your setup
 
@@ -100,6 +105,8 @@ The same engagement surfaced three silent production breaks with exactly this sh
 - [Durable Memory](durable-memory.md) — recalled memories are design claims; the sanity check validates them against live state before action
 - [Model Orchestration](model-orchestration.md) — the pre-edit Sanity Pass is non-down-modelable by rule; it stays on the heavy tier, at depth, no matter the deadline
 - [The Trust Gradient](trust-gradient.md) — every handoff gets this pass regardless of which actor authored it, and un-anchored "verified" claims are themselves delta-worthy
-- [Architecture Graphs](architecture-graphs.md#the-graph-consultation-pass) — the fourth leg: was the design grounded in a current structure map?
+- [Architecture Graphs](architecture-graphs.md) — why the fourth leg searches the code instead of consulting a map
+- [Environment Targeting](environment-targeting.md) — step zero of every data-state check: which database is this?
+- [Defect Disposition](defect-disposition.md) — a defect found during the pass that contradicts the spec is a delta first, then takes a disposition
 - [Operator Clearances](operator-clearances.md) — what the Executor may act on once the pass is clean, and what still stops at the human
 - Back to the [main playbook](../README.md)

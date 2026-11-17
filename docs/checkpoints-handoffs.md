@@ -23,7 +23,7 @@ Both are files on disk. Neither relies on an agent "remembering."
 
 **Checkpoints.** Write one at the start of any multi-step task (the plan, all steps unchecked), after each major step, when a timeout feels close, and at session end. Store them at `<repo>/docs/checkpoints/<DATE>-<slug>.md`. The session-start protocol: read the latest checkpoint → read the [`AGENT.md` cascade](context-cascade.md) → read the execution roadmap → resume, skipping completed work → write a fresh checkpoint noting where you picked up.
 
-```
+```text
 # Checkpoint: <Task Name>
 **Date:** YYYY-MM-DD
 **Status:** IN PROGRESS | BLOCKED | COMPLETE
@@ -45,7 +45,7 @@ Both are files on disk. Neither relies on an agent "remembering."
 
 **Handoffs.** The Strategist writes them to the governance repo. A complete handoff carries: file paths, function signatures, env-var names, an ordered plan, explicit acceptance criteria, and an **Operator Action Block** listing manual steps (secrets, migrations) the agent must *not* do. The Executor implements it, then logs the result to the project changelog.
 
-```
+```text
 # Handoff: <ID> — <Title>
 **Tier:** <0–3>   **Repo:** <name>
 
@@ -63,13 +63,36 @@ Both are files on disk. Neither relies on an agent "remembering."
 1. <secret / migration / anything the agent must not run>
 ```
 
+## After the handoff ships
+
+A handoff, a checkpoint, and a changelog entry describe the same work three times, and it's tempting to treat the handoff as disposable once the changelog has it. Don't. They carry different things:
+
+| Artifact | What only it carries |
+| :---- | :---- |
+| **Handoff** | The *intent* — including deferred scope, the design alternatives that were rejected, and the "what the spec said" half of every Sanity Delta |
+| **Checkpoint** | The *execution record* — what was done, in what order, and where it stopped |
+| **Changelog entry** | The *condensed summary* — what shipped, in one place per repo |
+
+One shop audited 412 executed handoffs before a proposed cleanup: 52 were true duplicates, 24 had diverged from their copies, and 336 were the only copy of their content. Only twenty byte-identical loose duplicates — outside any canonical store and outside git — were safe to remove, and a backup was taken first.
+
+- **Keep executed handoffs.** Storage is trivial; the deferred specs and the record of what was deviated *from* are not reproducible.
+- **Don't move or rename a canonical handoff.** Checkpoints and changelogs cite it by full path.
+- **Validate the envelope, never the body.** A schema can check that a handoff names its repo, tier, date, and type. It can't tell a stale design from a live one — the [Sanity Check](sanity-check.md) does that, against production.
+
+## When two actors have no channel
+
+Sometimes the Executor and another actor can't reach each other at all — a second assistant on a different account, say, with a human carrying documents between them. Two rules keep that safe:
+
+- **Every handed-over document carries a supersedes line** — `Supersedes: 2026-11-02-booking-page-fix` or *"Superseded by: …"* — and **the receiver checks for a newer document before starting.** If an actor can create files but not edit them, it can't retract a withdrawn task; the withdrawn one stays readable forever, and the correction is a different file. Without the line, that is precisely the shape of executing a plan that was already withdrawn.
+- **"I sent it" isn't "they got it."** With no channel, receipt is confirmed by the human carrying it. And the working agreement between the two actors lives where *both* can read it — a protocol its subject can't open isn't a protocol.
+
 ## Where state goes when the governance file grows
 
 A single-file governance store (one `state.md` for the whole enterprise) works for the first few months. By the time you're carrying a dozen active projects, three families of standards, six months of decisions, and a backlog of deferred items, that file becomes unreadable — and every session pays a re-read tax for context it doesn't need.
 
 The answer is a **state cascade**: one quick-read index file, with the bulk of the state sharded into named files that the session loads on demand.
 
-```
+```text
 governance/
 ├── state.md                       ← quick-read index + cascade map
 └── state/
@@ -108,7 +131,7 @@ The payoff: `state.md` stays under a page; per-session context loads stay under 
 
 A migration task times out after step 3 of 6. Without a checkpoint, the next session re-runs steps 1–3 and double-applies the migration. With this checkpoint, it doesn't:
 
-```
+```text
 ## Plan
 1. [done] Add tenant_id column
 2. [done] Backfill existing rows
@@ -132,6 +155,9 @@ The next session reads it, skips to step 4, and finishes cleanly. Nothing is los
 | Vague checkpoints ("worked on stuff") | Useless to the next session | Record the next action + non-obvious state |
 | Handoff with no acceptance criteria | "Done" is undefined | List PASS/FAIL criteria |
 | No Operator Action Block | Manual steps get lost, or the agent oversteps | List every human-only step explicitly |
+| Deleting executed handoffs as clutter | Loses deferred specs and the record of what was deviated from | Keep them; storage is trivial |
+| Validating a handoff's body with a schema | A schema can't tell a stale design from a live one | Validate the envelope; verify the body against production |
+| Handing a document across with no supersedes line | A withdrawn task stays live and gets executed | Every handed-over doc names what it replaces; the receiver checks first |
 
 ## Adapt it to your setup
 

@@ -24,7 +24,8 @@ The root under all three: **the fetch succeeded and the content was wrong**, and
 2. **Escalate the tool; don't downgrade the source.** Plain fetch → a browser that executes JavaScript → optional cheap-tier distillation of what the browser rendered.
 3. **A distillation is a summary, not a contract.** Contract-critical facts — parameters, payload shapes, auth and signature schemes, required headers, limits — are checked against the rendered primary before anything is built on them.
 4. **Authenticated, interactive work runs in the human's real browser session**, driven by a down-modeled agent under a spec the heavy tier wrote and verifies.
-5. **Scheduled watchers send a browser-like user agent, fail per-source rather than per-batch, and verify that what they extracted exists in the bytes they fetched.**
+5. **Every request an agent writes or makes — scheduled watchers and one-off vendor calls alike — sends a browser-like user agent, fails per-source rather than per-batch, and verifies that what it extracted exists in the bytes it fetched.**
+6. **Every fetched fact has three outcomes, not two:** found, confirmed empty, or *could not check.* A blocked, failed, or never-successful source is never reported as absence.
 
 ## How it works
 
@@ -61,7 +62,7 @@ For multi-step work behind a login — pulling a report from a SaaS portal, plac
 - **A mid tier executes** the mechanical browser work in the operator's session.
 - **Heavy tier verifies the outcome**, through an API wherever one exists rather than by trusting the executing agent's report.
 
-The operator invokes it, because it runs in their session. This is the same shape as every other delegation in the playbook: the judgment stays up, the mechanics go down, and the verification comes back up.
+The operator invokes it, because it runs in their session — and **the operator types every password and every two-step code, never the agent.** This is the same shape as every other delegation in the playbook: the judgment stays up, the mechanics go down, and the verification comes back up.
 
 ### Scheduled watchers
 
@@ -72,6 +73,19 @@ Anything that polls public sources on a schedule — a regulatory monitor, a pri
 3. **Verify what the fetch yielded before it drives state.** An extracted or proposed URL must actually appear in the bytes that were fetched. Without that check, a model asked to "find the docket link" will produce a plausible one that has never existed.
 
 The failure mode these prevent is the worst one a monitor has: **the silent no-op.** Nothing errors, the heartbeat updates, and the absence of alerts reads as "no changes" rather than "not looking." Test a new watcher against the real sources on its first run, never against fixtures — fixtures cannot 403.
+
+The user-agent rule applies to one-off calls too, not just watchers — and "browser-like" is chosen per host, not fleet-wide. One government mapping service didn't return a 403 at all: it **hung**, with no error and no rate-limit response, on any user agent containing an email address, a URL, or the word "bot" — exactly the contact details a polite client is told to include. Retry-with-backoff turned each hang into a minute and a half per record. A timeout from a government host means: bisect the user agent against one fixed URL before blaming the server.
+
+### Absence versus failure
+
+A fetch has three outcomes — *found*, *confirmed empty*, and *could not check* — and most failures in this section come from collapsing the third into the second.
+
+- **An OR over two sources hides the dead one.** A hazard page combined two public feeds. One had 404'd since the day it was wired in — the repo had never once fetched it successfully — and the page still showed a fresh timestamp and *"no nearby incident,"* because the read path OR-ed the dead source with the healthy one. That's a false negative about an active hazard, on a hazard page. Persist per-source status, last success, and last attempt; distinguish *never succeeded* from *stale* from *empty*; and surface a dead source by name rather than routing around it.
+- **Success with nothing inside.** A bulk-data API's newest dataset returned zero files with `status: successful`, so taking the latest date produced a confident empty answer. Assert a non-empty parse before accepting an empty result.
+- **An error inside a 200.** A geographic query with the wrong field-name case returned its error *wrapped in a 200*, which read as "outside coverage" and reported *no parcel* for an entire property portfolio. Read the body, check for an error object, and look up the service's own field list before querying it.
+- **Rate limits that read as findings.** A naive loop produced eighteen source failures on one 28-record run, each one indistinguishable from a real gap in the data. Pace the loop, back off on 429, report every failed source by name, and exit non-zero.
+- **401 means a bad credential; 403 often means a firewall.** A vendor API behind a web application firewall returned 403 with a bare `error code: NNNN` — the firewall's format, not the vendor's JSON — to a default HTTP client, while `curl` got 200 on the same key and endpoint. The 403 was read as *"this key lacks permission,"* which produced a false blocker and two unnecessary replacement keys. Re-issue the request from a second client before concluding anything; when two clients disagree, the problem is the client.
+- **Blocked is not absent.** In external recon, a firewall 403, a social network's rejection, or an empty search page is evidence about *your client*, not about the target. Four sources a recon pass recorded as blocked all held real data that the operator retrieved by hand in under a minute. When a source is blocked, record it as *unverifiable* and ask — an operator's screenshot outranks a blocked probe.
 
 ### The empirical-reachability corollary
 
@@ -118,6 +132,10 @@ The distillation did the token-heavy grind. The browser did the rendering. The E
 | One failed source aborts the whole polling run | A single 404 blinds you to the other eleven sources indefinitely | Log and skip per source; correct dead URLs rather than retrying them |
 | Testing a watcher only against fixtures | Fixtures never 403, never move, and never change shape | First run goes against the real sources, and you read the results |
 | "The route is public — I read the code" | Auth-gate ordering and middleware bypasses make the source misleading | Hit the live URL; confirm the content type of what comes back |
+| OR-ing two sources and showing "nothing found" | The dead source disappears behind the healthy one | Per-source status; a dead source is a named gap |
+| Reading a 403 as missing permission | A firewall answers in the same status code | Re-issue from a second client before concluding |
+| Retrying a hanging government endpoint | The hang may be triggered by your user agent | Bisect the user agent on one fixed URL |
+| Recording a blocked source as a negative finding | "Couldn't look" becomes "nothing there" | Mark it unverifiable, and ask the operator |
 
 ## Adapt it to your setup
 
@@ -134,4 +152,6 @@ The distillation did the token-heavy grind. The browser did the rendering. The E
 - [Autonomous Loops](autonomous-loops.md) — the general discipline for anything running with no one in the room; watchers add three rules to it
 - [Infrastructure Limits](infrastructure-limits.md) — where verified vendor limits and gotchas are written down so the next session doesn't re-fetch them
 - [The Sanity Check](sanity-check.md) — the same instinct applied to your own production state rather than someone else's docs
+- [Verify by Destination](verify-by-destination.md) — the outward-facing half: confirming where your own links, sends, and deploys actually landed
+- [Honest Checks](honest-checks.md) — the three exit codes, which are this section's three outcomes applied to a check script
 - Back to the [main playbook](../README.md)

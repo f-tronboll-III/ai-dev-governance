@@ -51,6 +51,19 @@ Recommended author tagging makes the audit trivial later:
 
 The point isn't bureaucracy — it's that when you grep the log later asking *"who made this rule and when,"* the answer is one command away.
 
+**One caveat that has cost real deploys:** if a repo deploys from a host that gates builds on the commit author — some refuse to build commits by an author who isn't a member of the team — then overriding the author per commit makes every push succeed while nothing deploys. In those repos, commit as the configured identity and put the role in a trailer (`Co-Authored-By:` or a `Role: Executor` line) instead. Tag the author only in repos you've confirmed don't deploy that way. See [Verify by Destination](verify-by-destination.md).
+
+### Commit only your paths, and confirm the push landed
+
+Two mechanical traps belong to session-end sync specifically, because it often runs while another session is active in the same repo:
+
+- **Commit by path, never by "whatever is staged."** A `git pull --rebase --autostash` restores a stash *with its staged entries intact*. One session's commit described a single file and contained a concurrent session's entire 164-file refactor. Only a path-scoped commit (`git commit -- <paths>`) ignores what someone else left in the index — and commit *before* rebasing, so your commit is sealed when the stash returns.
+- **Never trust a piped push's printed result.** `git push … | tail` returns the exit code of `tail`. A failed push printed its last lines and the pipeline reported success. Confirm with a count instead: nothing should remain ahead of the remote (`git rev-list --count origin/main..HEAD` is `0`).
+
+And one rule about precedence between the protocol and its tooling: **when a sync script contradicts a rule in the top-level context file, the script is wrong.** One protocol doc said *"script behavior is ground truth,"* which read as permission to write a script bug into the law; the script was blind-copying files the top-level rules said must be union-merged. The top-level file outranks the protocol doc, and the doc outranks the script.
+
+Keep the session-end step small: sync only the files this session changed, never sweep another session's work, never sync anything containing a secret, and treat it as a fifteen-second bookkeeping step — on failure, log it and move on rather than stalling the session.
+
 ### The conflict-resolution protocol
 
 When `--ff-only` fails, do not `git pull --no-ff`, do not `git rebase` blind, do not `git push --force`. Run the protocol:
@@ -97,7 +110,7 @@ Twenty minutes later, the Executor (Claude Code) starts a session — but its lo
 
 Now imagine the unlucky version: the Executor's last session, two days ago, also touched `family-b/AGENT.md` — adding a changelog line for a phase that shipped. That commit was made locally but never pushed (the previous session ended in a timeout before Governance Sync could run). When today's session starts:
 
-```
+```text
 $ git merge --ff-only origin/main
 fatal: Not possible to fast-forward, aborting.
 ```
@@ -122,6 +135,10 @@ Without the protocol, this is the session that quietly drops the changelog entry
 | Letting unpushed commits accumulate | Each one is a future merge conflict | Push at session end, every session, no exceptions |
 | `cp`-ing a co-edited file over its mirror during sync | Only one side is tracked, so the loss is silent — no conflict, no warning, just missing rules | Union-merge co-edited files; reserve `cp` for genuinely single-source ones |
 | Leaving it ambiguous which files are single-source | The next session guesses, and guesses `cp` | One comment per path in the sync script naming its kind |
+| Committing whatever is staged | The index may already hold another session's work | Path-scoped commits, made before the rebase |
+| Trusting a push piped through another command | The pipeline returns the last command's exit code | Check that nothing remains ahead of the remote |
+| "The script is ground truth" | A script bug becomes the law | The top-level rules outrank the doc, and the doc outranks the script |
+| Role-tagged authors in a repo whose host gates builds on the author | Every push succeeds; nothing deploys | Configured identity, with the role in a trailer |
 
 ## Adapt it to your setup
 

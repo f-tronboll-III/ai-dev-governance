@@ -109,6 +109,21 @@ Verification is a 10-minute read: log into the vendor's billing dashboard, confi
 
 When a vendor's reality has drifted from the file, the update *is the session*: bring the file current, log the delta in the changelog, and — if the delta would have changed a recent design decision — surface it to the Strategist for review.
 
+## Limits the code only pretends to respect
+
+Knowing the limit is half the job. The other half is code that actually honors it — and agent-written code has a recurring way of looking like it does. **A comment or a name asserting compliance is not the control.** Verify the mechanism against the unit the limit is enforced in.
+
+- **Chunking is not pacing.** Three repos sliced a recipient list into batches of fifty and fired each batch with `Promise.all`, under the comment *"send in batches of 50 to avoid the provider's rate limits."* Slicing bounds memory. `Promise.all` then fires all fifty requests at once — twenty-five times a two-requests-per-second ceiling. The provider's SDK resolved each rejection as an error object rather than throwing, so dropped recipients looked like recipients who'd never been eligible. And a sustained run of rejections can get the sending account or domain suspended, which stops every send *and* receive on it. The largest list exposed held about a thousand subscribers.
+- **A comment declaring the rate safe is not a computation.** A 100 ms delay sat under the comment *"10 sends/sec — well under the ceiling."* The ceiling was two per second.
+- **A per-process map is not a rate limiter on serverless.** State lives per instance: a cold start begins at zero, and concurrent instances each keep their own tally. The file's own header called it *"a soft guard,"* which reads as a caveat when the honest description is *absent.*
+- **One meter per credential, built outside the loop.** A meter constructed inside each iteration resets its clock every time and meters nothing.
+- **Leave margin.** The vendor enforces on its own clock; pace at, say, 600 ms against a 500 ms floor.
+- **A pacing change makes the run cap load-bearing.** Paced sends take longer; set the job's maximum duration from real arithmetic, and report when a run stopped at its cap rather than finishing.
+- **Inside a webhook handler, pace but don't back off.** A slow acknowledgment makes the vendor redeliver.
+- **A rate limit and a daily cap are different controls.** A repo usually needs both.
+
+Each of these passed a code-reading review, and one passed an automated screen that checked only that *an* interval existed. See [Honest Checks](honest-checks.md#presence-is-not-sufficiency) for why a screen that finds the control's shape can't tell you the control works.
+
 ## When the Strategist is tempted to "I remember the limit is X"
 
 Same shape as every other Strategist temptation. The five-second test: *am I answering from a file I just read, or from a number I just remember?* If the latter, the answer goes through the file or it doesn't go.
@@ -149,6 +164,9 @@ The discipline traded a 15-minute file read per relevant session for a 30% silen
 | Trust an AI's recollection of "I remember Vercel allows X crons" | Training data is months stale on a quarterly-changing platform | Every infrastructure claim cites the file or doesn't make it |
 | Skip verification because "nothing changed" | The vendor changed; you didn't | Cadence runs regardless of whether you think anything moved |
 | Quote a price without the verification date | A six-month-old price is a guess | Every price citation carries the date the file was verified |
+| Slicing into batches, then firing each batch in parallel | Bounds memory, not rate; a batch of fifty is fifty simultaneous requests | Pace the requests, or use the vendor's own batch endpoint |
+| A comment saying the loop is "well under the limit" | The comment is not the arithmetic | Compute the rate from the code, against the verified limit |
+| An in-memory limiter on serverless | Each instance counts alone; cold starts reset it | A limiter with shared state |
 
 ## Adapt it to your setup
 
